@@ -28,7 +28,7 @@ export function PositionOverview() {
       isPositive: false,
     },
     {
-      asset: "ETH",
+      asset: "WETH",
       collateral: 8.45,
       collateralUSD: "30,120",
       debt: "15,800",
