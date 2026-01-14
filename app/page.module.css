@@ -118,6 +118,15 @@
 .settingsButton {
   background-color: hsl(var(--primary));
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.arbitrumIcon {
+  height: 1.25rem;
+  width: 1.25rem;
+  object-fit: contain;
 }
 
 .settingsIcon {

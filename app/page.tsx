@@ -42,7 +42,10 @@ export default function Home() {
               </div>
             </div>
             <div className={styles.headerActions}>
-              <Button className={styles.settingsButton}>CONNECT WALLET</Button>
+              <Button className={styles.settingsButton}>
+                <img src="/arbitrum.png" alt="Arbitrum" className={styles.arbitrumIcon} />
+                CONNECT WALLET
+              </Button>
             </div>
           </div>
         </div>
