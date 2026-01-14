@@ -1,0 +1,230 @@
+.card {
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--card));
+}
+
+.title {
+  color: hsl(var(--foreground));
+}
+
+.positionsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.positionCard {
+  border-radius: 0.5rem;
+  border: 1px solid #0663b7;
+  transition: all 0.2s ease;
+}
+
+.positionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  background-color: #01192e;
+  padding: 1rem;
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.assetInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.assetTitleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.assetName {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.protectedBadge {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  border: 1px solid hsla(var(--primary) / 0.3);
+  color: hsl(var(--primary));
+  background-color: hsla(var(--primary) / 0.1);
+}
+
+.assetDescription {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.changeIndicator {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+}
+
+.positive {
+  color: hsl(var(--chart-3));
+}
+
+.negative {
+  color: hsl(var(--chart-5));
+}
+
+.changeIcon {
+  height: 1rem;
+  width: 1rem;
+}
+
+.metricsGrid {
+  margin: 1rem;
+  margin-bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .metricsGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.metricLabel {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.metricValue {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+}
+
+.collateralUSD {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: hsl(var(--primary));
+}
+
+.ltvValueWarning {
+  color: hsl(var(--chart-5));
+}
+
+.ltvValueSafe {
+  color: hsl(var(--chart-3));
+}
+
+.statusMonitor {
+  color: hsl(var(--chart-4));
+}
+
+.statusHealthy {
+  color: hsl(var(--chart-3));
+}
+
+.protectionBox {
+  margin: 1rem;
+  margin-bottom: 0;
+}
+
+.protectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.shieldIcon {
+  height: 1rem;
+  width: 1rem;
+  color: hsl(var(--primary));
+}
+
+.protectionLabel {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+}
+
+.sliderWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sliderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.hfValue {
+  font-weight: 700;
+  color: hsl(var(--primary));
+}
+
+.slider {
+  width: 100%;
+}
+
+.sliderLabels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.autoProtectNote {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: hsl(var(--muted-foreground));
+  margin-top: 0.5rem;
+}
+
+.autoProtectValue {
+  color: hsl(var(--primary));
+  font-weight: 500;
+}
+
+.actionsRow {
+  margin: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.actionButton {
+  flex: 1;
+  background-color: transparent;
+}
+
+.protectionButton {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--card));
+  border: none;
+  font-weight: 700;
+}
+
+.protectionButton:hover {
+  background-color: hsla(var(--primary) / 0.9);
+}
+
+.buttonIcon {
+  height: 1rem;
+  width: 1rem;
+  margin-right: 0.25rem;
+}

@@ -1,0 +1,153 @@
+.card {
+  border: 1px solid hsl(var(--border));
+}
+
+.headerWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.shieldIcon {
+  height: 1.25rem;
+  width: 1.25rem;
+  color: hsl(var(--primary));
+}
+
+.filterWrapper {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.activeFilter {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.tableWrapper {
+  border-radius: 0.375rem;
+  border: 1px solid hsl(var(--border));
+}
+
+.headerRow :global(tr:hover) {
+  background-color: transparent;
+}
+
+.row {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.row:hover {
+  background-color: hsla(var(--primary) / 0.05);
+}
+
+.cellDate {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.cellAction {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+}
+
+.assetBadge {
+  border: 1px solid hsla(var(--primary) / 0.3);
+  color: hsl(var(--primary));
+}
+
+.cellAmount {
+  font-weight: 500;
+}
+
+.statusBadge {
+  background-color: hsla(var(--chart-3) / 0.2);
+  color: hsl(var(--chart-3));
+}
+
+.statusBadge:hover {
+  background-color: hsla(var(--chart-3) / 0.3);
+}
+
+.cellSaved {
+  text-align: right;
+  font-weight: 700;
+  color: hsl(var(--chart-3));
+}
+
+.chevronIcon {
+  height: 1rem;
+  width: 1rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.expandedRow {
+  background-color: hsla(var(--muted) / 0.3);
+}
+
+.detailsWrapper {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.detailsText {
+  color: hsl(var(--foreground));
+}
+
+.detailsMeta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.metaValue {
+  color: hsl(var(--foreground));
+  font-weight: 500;
+}
+
+.txHash {
+  color: hsl(var(--primary));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.equityBox {
+  margin-top: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid hsla(var(--primary) / 0.2);
+  background-color: hsla(var(--primary) / 0.05);
+  padding: 1rem;
+}
+
+.equityRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.equityLabel {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.equityValue {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
+  color: hsl(var(--chart-3));
+}

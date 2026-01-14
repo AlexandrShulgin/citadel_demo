@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card/card"
+import { Button } from "@/components/ui/button/button"
 import {
   Line,
   XAxis,
@@ -15,6 +15,7 @@ import {
   AreaChart,
 } from "recharts"
 import { Clock } from "lucide-react"
+import styles from "./health-factor-chart.module.css"
 
 export function HealthFactorChart() {
   const [timeframe, setTimeframe] = useState<"1h" | "24h" | "7d">("24h")
@@ -50,23 +51,23 @@ export function HealthFactorChart() {
   }, [])
 
   return (
-    <Card className="border-primary/20">
+    <Card className={styles.card}>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className={styles.headerWrapper}>
           <div>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className={styles.title}>
               Health Factor History
-              <Clock className="h-4 w-4 text-muted-foreground animate-pulse-glow" />
+              <Clock className={styles.clockIcon} />
             </CardTitle>
             <CardDescription>Real-time monitoring</CardDescription>
           </div>
-          <div className="flex gap-1 rounded-lg border border-border p-1">
+          <div className={styles.timeframeContainer}>
             {(["1h", "24h", "7d"] as const).map((tf) => (
               <Button
                 key={tf}
                 size="sm"
                 variant={timeframe === tf ? "default" : "ghost"}
-                className={timeframe === tf ? "bg-primary text-primary-foreground" : ""}
+                className={timeframe === tf ? styles.activeButton : ""}
                 onClick={() => setTimeframe(tf)}
               >
                 {tf}
@@ -76,7 +77,7 @@ export function HealthFactorChart() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="h-[300px]">
+        <div className={styles.chartContainer}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
               <defs>

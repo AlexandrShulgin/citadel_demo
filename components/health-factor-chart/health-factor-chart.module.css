@@ -1,0 +1,51 @@
+.card {
+  border: 1px solid hsl(var(--border));
+}
+
+.headerWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.clockIcon {
+  height: 1rem;
+  width: 1rem;
+  color: hsl(var(--muted-foreground));
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.timeframeContainer {
+  display: flex;
+  gap: 0.25rem;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  padding: 0.25rem;
+}
+
+.activeButton {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.chartContainer {
+  height: 300px;
+}
