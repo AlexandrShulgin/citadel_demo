@@ -158,6 +158,12 @@
 .sliderWrapper {
   display: flex;
   flex-direction: column;
+  transition: opacity 0.2s ease;
+}
+
+.disabledSlider {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .controlsRow {

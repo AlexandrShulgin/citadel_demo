@@ -122,7 +122,7 @@ export function PositionOverview() {
                   <Label className={styles.protectionLabel}>Protection Threshold</Label>
                 </div>
                 <div className={styles.controlsRow}>
-                  <div className={styles.sliderWrapper}>
+                  <div className={`${styles.sliderWrapper} ${position.isProtected ? styles.disabledSlider : ""}`}>
                     <div className={styles.sliderRow}>
                       <span className={styles.metricLabel}>Minimum Health Factor</span>
                       <span className={styles.hfValue}>{position.minHealthFactor.toFixed(1)}</span>
@@ -134,6 +134,7 @@ export function PositionOverview() {
                       max={2.5}
                       step={0.1}
                       className={styles.slider}
+                      disabled={position.isProtected}
                     />
                     <div className={styles.sliderLabels}>
                       <span>1.1</span>
