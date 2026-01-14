@@ -121,38 +121,38 @@ export function PositionOverview() {
                   <Shield className={styles.shieldIcon} />
                   <Label className={styles.protectionLabel}>Protection Threshold</Label>
                 </div>
-                <div className={styles.sliderWrapper}>
-                  <div className={styles.sliderRow}>
-                    <span className={styles.metricLabel}>Minimum Health Factor</span>
-                    <span className={styles.hfValue}>{position.minHealthFactor.toFixed(1)}</span>
+                <div className={styles.controlsRow}>
+                  <div className={styles.sliderWrapper}>
+                    <div className={styles.sliderRow}>
+                      <span className={styles.metricLabel}>Minimum Health Factor</span>
+                      <span className={styles.hfValue}>{position.minHealthFactor.toFixed(1)}</span>
+                    </div>
+                    <Slider
+                      value={[position.minHealthFactor]}
+                      onValueChange={(value) => updateMinHealthFactor(index, value[0])}
+                      min={1.1}
+                      max={2.5}
+                      step={0.1}
+                      className={styles.slider}
+                    />
+                    <div className={styles.sliderLabels}>
+                      <span>1.1</span>
+                      <span>2.5</span>
+                    </div>
                   </div>
-                  <Slider
-                    value={[position.minHealthFactor]}
-                    onValueChange={(value) => updateMinHealthFactor(index, value[0])}
-                    min={1.1}
-                    max={2.5}
-                    step={0.1}
-                    className={styles.slider}
-                  />
-                  <div className={styles.sliderLabels}>
-                    <span>1.1</span>
-                    <span>2.5</span>
-                  </div>
-                  <p className={styles.autoProtectNote}>
-                    Smart contract will automatically protect your position when health factor drops below{" "}
-                    <span className={styles.autoProtectValue}>{position.minHealthFactor.toFixed(1)}</span>
-                  </p>
+                  <Button
+                    size="sm"
+                    variant={position.isProtected ? "destructive" : "default"}
+                    className={`${styles.actionButton} ${styles.protectionButton} ${position.isProtected ? styles.protectionButtonDestructive : ""}`}
+                    onClick={() => toggleProtection(index)}
+                  >
+                    {position.isProtected ? "UNPROTECT" : "PROTECT"}
+                  </Button>
                 </div>
-              </div>
-
-              <div className={styles.actionsRow}>
-                <Button
-                  size="sm"
-                  className={`${styles.actionButton} ${styles.protectionButton}`}
-                  onClick={() => toggleProtection(index)}
-                >
-                  {position.isProtected ? "UNPROTECT" : "PROTECT"}
-                </Button>
+                <p className={styles.autoProtectNote}>
+                  Smart contract will automatically protect your position when health factor drops below{" "}
+                  <span className={styles.autoProtectValue}>{position.minHealthFactor.toFixed(1)}</span>
+                </p>
               </div>
             </div>
           ))}
