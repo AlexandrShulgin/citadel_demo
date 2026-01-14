@@ -34,7 +34,7 @@ export default function Home() {
           <div className={styles.headerInner}>
             <div className={styles.logoWrapper}>
               <div className={styles.logoIcon}>
-                <img src="/citadel.png" alt="Citadel" className={styles.shieldIcon} />
+                <Shield className={styles.shieldIcon} />
               </div>
               <div>
                 <h1 className={styles.logoTitle}>Citadel Protocol</h1>

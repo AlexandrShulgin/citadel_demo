@@ -6,7 +6,9 @@ import { Progress } from "@/components/ui/progress/progress"
 import { Button } from "@/components/ui/button/button"
 import { Input } from "@/components/ui/input/input"
 import { Label } from "@/components/ui/label/label"
-import { AlertTriangle, CheckCircle2, TrendingUp, TrendingDown } from "lucide-react"
+import { AlertTriangle, CheckCircle2, TrendingUp, TrendingDown, Shield } from "lucide-react"
+import { Slider } from "@/components/ui/slider/slider"
+import { Badge } from "@/components/ui/badge/badge"
 import styles from "./health-factor-gauge.module.css"
 
 export function HealthFactorGauge() {
@@ -15,6 +17,8 @@ export function HealthFactorGauge() {
   const [debtAmount, setDebtAmount] = useState(35000)
   const [showSimulator, setShowSimulator] = useState(false)
   const [simulatedHF, setSimulatedHF] = useState(healthFactor)
+  const [minHealthFactor, setMinHealthFactor] = useState(1.5)
+  const [isProtected, setIsProtected] = useState(false)
 
   const isHealthy = healthFactor > 1.5
   const progress = Math.min((healthFactor / 3) * 100, 100)
@@ -67,7 +71,7 @@ export function HealthFactorGauge() {
               />
             </svg>
             <div className={styles.gaugeCenter}>
-              <span className={styles.gaugeValue}>{healthFactor.toFixed(2)}</span>
+              <span className={styles.gaugeValue}>{healthFactor.toFixed(2).replace(".", ",")}</span>
               <span className={styles.gaugeLabel}>Health Factor</span>
               <div className={styles.liveIndicator}>
                 {healthFactor > 2.3 ? (
@@ -133,21 +137,67 @@ export function HealthFactorGauge() {
         <div className={styles.thresholdsWrapper}>
           <div className={styles.thresholdRow}>
             <span className={styles.gaugeLabel}>Safe Zone</span>
-            <span className={styles.statusTitle}>&gt; 2.0</span>
+            <span className={styles.statusTitle}>&gt; 2,0</span>
           </div>
           <Progress value={100} className={styles.thresholdProgress} />
 
           <div className={styles.thresholdRow}>
             <span className={styles.gaugeLabel}>Warning Zone</span>
-            <span className={styles.statusTitle}>1.5 - 2.0</span>
+            <span className={styles.statusTitle}>1,5 - 2,0</span>
           </div>
           <Progress value={66} className={`${styles.thresholdProgress} ${styles.warningProgress}`} />
 
           <div className={styles.thresholdRow}>
             <span className={styles.gaugeLabel}>Danger Zone</span>
-            <span className={styles.statusTitle}>&lt; 1.5</span>
+            <span className={styles.statusTitle}>&lt; 1,5</span>
           </div>
           <Progress value={33} className={`${styles.thresholdProgress} ${styles.dangerProgress}`} />
+        </div>
+
+        {/* Protection Box */}
+        <div className={styles.protectionBox}>
+          <div className={styles.protectionHeader}>
+            <Shield className={styles.shieldIcon} />
+            <Label className={styles.protectionLabel}>Automatic Protection</Label>
+            {isProtected && (
+              <Badge variant="outline" className={styles.protectedBadge}>
+                Active
+              </Badge>
+            )}
+          </div>
+          <div className={styles.controlsRow}>
+            <div className={`${styles.sliderWrapper} ${isProtected ? styles.disabledSlider : ""}`}>
+              <div className={styles.sliderRow}>
+                <span className={styles.gaugeLabel}>Minimum Health Factor</span>
+                <span className={styles.hfValue}>{minHealthFactor.toFixed(1).replace(".", ",")}</span>
+              </div>
+              <Slider
+                value={[minHealthFactor]}
+                onValueChange={(value) => setMinHealthFactor(value[0])}
+                min={1.1}
+                max={2.5}
+                step={0.1}
+                className={styles.slider}
+                disabled={isProtected}
+              />
+              <div className={styles.sliderLabels}>
+                <span>1,1</span>
+                <span>2,5</span>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant={isProtected ? "destructive" : "default"}
+              className={`${styles.protectionButton} ${isProtected ? styles.protectionButtonDestructive : ""}`}
+              onClick={() => setIsProtected(!isProtected)}
+            >
+              {isProtected ? "UNPROTECT" : "PROTECT"}
+            </Button>
+          </div>
+          <p className={styles.autoProtectNote}>
+            Position will be automatically liquidated and re-bought when health factor drops below{" "}
+            <span className={styles.autoProtectValue}>{minHealthFactor.toFixed(1).replace(".", ",")}</span>
+          </p>
         </div>
       </CardContent>
     </Card>
