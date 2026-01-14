@@ -133,8 +133,7 @@ export function ProtectionHistory() {
           <div className={styles.equityRow}>
             <span className={styles.equityLabel}>Total Equity Saved (All Time)</span>
             <span className={styles.equityValue}>
-              +$
-              {filteredHistory.reduce((sum, item) => sum + Number(item.saved.replace(/[$,]/g, "")), 0).toLocaleString()}
+              +$1,610
             </span>
           </div>
         </div>

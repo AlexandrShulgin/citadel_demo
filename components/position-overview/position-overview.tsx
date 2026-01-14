@@ -14,8 +14,8 @@ export function PositionOverview() {
     {
       asset: "ETH",
       collateral: 12.5,
-      collateralUSD: 45231,
-      debt: 28450,
+      collateralUSD: '45,231',
+      debt: '28,450',
       debtAsset: "USDC",
       ltv: 62.9,
       change: 2.3,
@@ -26,8 +26,8 @@ export function PositionOverview() {
     {
       asset: "WBTC",
       collateral: 2.3,
-      collateralUSD: 98400,
-      debt: 45200,
+      collateralUSD: '98,400',
+      debt: '45,200',
       debtAsset: "DAI",
       ltv: 45.9,
       change: -1.2,
