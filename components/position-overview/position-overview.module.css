@@ -223,7 +223,7 @@
 
 .protectionButton {
   background-color: hsl(var(--primary));
-  color: white;
+  color: #000;
   border: none;
   font-weight: 700;
   height: 2rem;
@@ -235,7 +235,7 @@
 
 .protectionButtonDestructive {
   background-color: hsl(var(--destructive));
-  color: hsl(var(--destructive-foreground));
+  color: #000;
 }
 
 .protectionButtonDestructive:hover {
