@@ -1,0 +1,102 @@
+.container {
+  width: 100%;
+}
+
+.tableContainer {
+  border-radius: 0.375rem;
+  border: 1px solid hsl(var(--border));
+  overflow: hidden;
+}
+
+.tableHead {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: none;
+  border-bottom: 1px solid hsl(var(--border));
+  padding: 0.75rem 1rem;
+}
+
+.headerRow:hover {
+  background-color: transparent !important;
+}
+
+.row {
+  border-bottom: 1px solid hsl(var(--border));
+  transition: background-color 0.2s ease;
+  cursor: default;
+}
+
+.row:hover {
+  background-color: hsla(var(--primary) / 0.05);
+}
+
+.assetCell {
+  padding: 0.75rem 1rem;
+}
+
+.assetBadge {
+  border: 1px solid hsla(var(--primary) / 0.3);
+  color: hsl(var(--primary));
+  font-weight: 600;
+}
+
+.valueCell {
+  padding: 0.75rem 1rem;
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--foreground));
+  font-weight: 500;
+}
+
+.zeroValue {
+  color: hsl(var(--muted-foreground));
+  opacity: 0.5;
+}
+
+.availableContainer {
+  display: flex;
+  flex-direction: column;
+}
+
+.usdValue {
+  font-size: 0.7rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.apyCell {
+  padding: 0.75rem 1rem;
+  font-weight: 500;
+  color: hsl(var(--chart-3));
+}
+
+.collateralCell {
+  padding: 0.75rem 1rem;
+  text-align: center;
+}
+
+.checkIcon {
+  color: hsl(var(--chart-3));
+}
+
+.actionCell {
+  padding: 0.5rem 1rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.actionButton {
+  height: 1.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.detailsButton {
+  height: 1.75rem;
+  font-size: 0.75rem;
+  border-color: hsla(var(--primary) / 0.2);
+  color: hsl(var(--muted-foreground));
+}
