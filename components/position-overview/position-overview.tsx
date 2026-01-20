@@ -21,6 +21,7 @@ export function PositionOverview() {
       debt: "28,450",
       debtAsset: "USDC",
       ltv: 62.9,
+      healthFactor: 1.34,
       change: 2.3,
       isPositive: true,
       minHealthFactor: 1.5,
@@ -33,6 +34,7 @@ export function PositionOverview() {
       debt: "45,200",
       debtAsset: "DAI",
       ltv: 45.9,
+      healthFactor: 1.85,
       change: -1.2,
       isPositive: false,
       minHealthFactor: 1.8,
@@ -45,6 +47,7 @@ export function PositionOverview() {
       debt: "15,800",
       debtAsset: "USDC",
       ltv: 52.4,
+      healthFactor: 1.95,
       change: 1.8,
       isPositive: true,
       minHealthFactor: 1.6,
@@ -131,6 +134,15 @@ export function PositionOverview() {
                       {position.ltv.toFixed(1).replace(".", ",")}%
                     </p>
                     <p className={styles.metricLabel}>of max 80%</p>
+                  </div>
+                  <div>
+                    <p className={styles.metricLabel}>Health Factor</p>
+                    <p
+                      className={`${styles.metricValue} ${position.healthFactor > 1.5 ? styles.statusHealthy : styles.statusMonitor}`}
+                    >
+                      {position.healthFactor.toFixed(2).replace(".", ",")}
+                    </p>
+                    <p className={styles.metricLabel}>Current</p>
                   </div>
                   <div>
                     <p className={styles.metricLabel}>Status</p>
