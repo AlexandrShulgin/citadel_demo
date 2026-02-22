@@ -1,0 +1,12 @@
+{
+  "WETH": {
+    "underlying": "0x4200000000000000000000000000000000000006",
+    "aToken": "0xD4a0e0b9149BCee3C920d2E00b5dE09138fd8bb7",
+    "vToken": "0x24e6e0795b3c7c71D965fCc4f371803d1c1DcA1E"
+  },
+  "USDC": {
+    "underlying": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "aToken": "0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB",
+    "vToken": "0x59dca05b6c26dbd64b5381374aAaC5CD05644C28"
+  }
+}

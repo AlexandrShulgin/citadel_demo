@@ -514,11 +514,11 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
       <div className={styles.metricsGrid}>
         <div>
           <p className={styles.metricLabel}>Collateral</p>
-          <p className={styles.metricValue}>1 usd</p>
+          <p className={styles.metricValue}>{totalCollateralUSD.toFixed(2)} USD</p>
         </div>
         <div>
           <p className={styles.metricLabel}>Debt</p>
-          <p className={styles.metricValue}>1 usd</p>
+          <p className={styles.metricValue}>{totalDebtUSD.toFixed(2)} USD</p>
         </div>
         <div>
           <p className={styles.metricLabel}>Health Factor</p>
