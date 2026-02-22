@@ -1,27 +1,62 @@
 "use client"
 
-import { Shield, TrendingUp, Settings, Activity, Zap } from "lucide-react"
+import { Shield, Zap } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card/card"
 import { Button } from "@/components/ui/button/button"
-import { Badge } from "@/components/ui/badge/badge"
 import { PositionOverview } from "@/components/position-overview/position-overview"
-import { useState, useEffect } from "react"
+import { useAccount, useConnect, useDisconnect } from "wagmi"
 import styles from "./page.module.css"
 
+// ──────────────────────────────────────────────────────────────
+// Кнопка подключения / отключения кошелька
+// ──────────────────────────────────────────────────────────────
+
+function WalletButton() {
+  const { address, isConnected } = useAccount()
+  const { connect, connectors, isPending } = useConnect()
+  const { disconnect } = useDisconnect()
+
+  if (isConnected && address) {
+    return (
+      <Button
+        className={styles.settingsButton}
+        variant="outline"
+        onClick={() => disconnect()}
+      >
+        <img src="/base.png" alt="Base" className={styles.arbitrumIcon}
+          onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+        />
+        {address.slice(0, 6)}…{address.slice(-4)}
+      </Button>
+    )
+  }
+
+  // Предпочитаем injected (MetaMask) или первый доступный коннектор
+  const connector =
+    connectors.find((c) => c.id === "injected") ??
+    connectors.find((c) => c.id === "metaMask") ??
+    connectors[0]
+
+  return (
+    <Button
+      className={styles.settingsButton}
+      onClick={() => connector && connect({ connector })}
+      disabled={isPending || !connector}
+    >
+      <img src="/base.png" alt="Base" className={styles.arbitrumIcon}
+        onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
+      />
+      {isPending ? "Подключение…" : "CONNECT WALLET"}
+    </Button>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
+// Страница
+// ──────────────────────────────────────────────────────────────
+
 export default function Home() {
-  const [tvl, setTvl] = useState(2400000)
-  const [assetsProtected, setAssetsProtected] = useState(1800000)
-  const [vaults, setVaults] = useState(127)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTvl((prev) => prev + Math.floor(Math.random() * 1000))
-      setAssetsProtected((prev) => prev + Math.floor(Math.random() * 500))
-      setVaults((prev) => (Math.floor(Math.random() * 3) === 0 ? prev + 1 : prev))
-    }, 5000)
-
-    return () => clearInterval(interval)
-  }, [])
+  const { isConnected } = useAccount()
 
   return (
     <div className={styles.pageWrapper}>
@@ -35,14 +70,11 @@ export default function Home() {
               </div>
               <div>
                 <h1 className={styles.logoTitle}>Citadel Protocol</h1>
-                <p className={styles.logoSubTitle}>AAVE V3 Liquidation Protection</p>
+                <p className={styles.logoSubTitle}>AAVE V3 Liquidation Protection · Base</p>
               </div>
             </div>
             <div className={styles.headerActions}>
-              <Button className={styles.settingsButton}>
-                <img src="/arbitrum.png" alt="Arbitrum" className={styles.arbitrumIcon} />
-                CONNECT WALLET
-              </Button>
+              <WalletButton />
             </div>
           </div>
         </div>
@@ -50,18 +82,21 @@ export default function Home() {
 
       <main className={`${styles.container} ${styles.main}`}>
         {/* Alert Banner */}
-        <div className={styles.alertBanner}>
-          <div className={styles.alertContent}>
-            <Zap className={styles.alertIcon} />
-            <div>
-              <h3 className={styles.alertTitle}>Protection Active</h3>
-              <p className={styles.alertDescription}>
-                Your position is being monitored in real-time. Automatic protection will trigger if health factor drops
-                below 1.5
-              </p>
+        {isConnected && (
+          <div className={styles.alertBanner}>
+            <div className={styles.alertContent}>
+              <Zap className={styles.alertIcon} />
+              <div>
+                <h3 className={styles.alertTitle}>Protection Active</h3>
+                <p className={styles.alertDescription}>
+                  Your positions are being monitored in real-time on Base mainnet.
+                  Automatic protection triggers when health factor drops below your threshold.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
         {/* Main Grid */}
         <div className={styles.mainGrid}>
           {/* Position Overview */}

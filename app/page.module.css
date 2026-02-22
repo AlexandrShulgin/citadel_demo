@@ -241,16 +241,7 @@
   color: hsl(var(--muted-foreground));
 }
 
-.mainGrid {
-  display: grid;
-  gap: 1.5rem;
-}
 
-@media (min-width: 1024px) {
-  .mainGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
 
 .gaugeContainer {
   grid-column: span 1 / span 1;

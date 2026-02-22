@@ -69,6 +69,8 @@ html {
   border-style: solid;
   border-color: hsl(var(--border));
   outline-color: hsl(var(--ring) / 0.5);
+  padding: 0;
+  margin: 0;
 }
 
 body {
