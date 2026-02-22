@@ -23,7 +23,6 @@ import {
   CITADEL_VAULT_ABI,
   ERC20_ABI,
   AAVE_POOL_ABI,
-  AAVE_POOL_DATA_PROVIDER_ABI,
 } from "@/lib/contracts"
 
 // ──────────────────────────────────────────────────────────────
@@ -47,20 +46,18 @@ function shortAddr(addr: string) {
 function VaultLogger({ vaultAddress, index }: { vaultAddress: `0x${string}`; index: number }) {
   const { data: hf } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getHealthFactor" })
 
-  // Читаем collateral и debt напрямую из Aave Data Provider (underlying адрес → aToken баланс)
-  const { data: wethReserve, error: wethReserveError, isLoading: wethLoading } = useReadContract({
-    chainId: base.id,
-    address: ADDRESSES.AavePoolDataProvider,
-    abi: AAVE_POOL_DATA_PROVIDER_ABI,
-    functionName: "getUserReserveData",
-    args: [ADDRESSES.WETH, vaultAddress],
+  // Читаем балансы (collateral и debt) напрямую через balanceOf на токенах
+  const { data: aWETHBalance, error: aWETHError, isLoading: aWETHLand } = useReadContract({
+    chainId: base.id, address: ADDRESSES.aWETH, abi: ERC20_ABI, functionName: "balanceOf", args: [vaultAddress]
   })
-  const { data: usdcReserve, error: usdcReserveError, isLoading: usdcLoading } = useReadContract({
-    chainId: base.id,
-    address: ADDRESSES.AavePoolDataProvider,
-    abi: AAVE_POOL_DATA_PROVIDER_ABI,
-    functionName: "getUserReserveData",
-    args: [ADDRESSES.USDC, vaultAddress],
+  const { data: vWETHBalance, error: vWETHError } = useReadContract({
+    chainId: base.id, address: ADDRESSES.vWETH, abi: ERC20_ABI, functionName: "balanceOf", args: [vaultAddress]
+  })
+  const { data: aUSDCBalance, error: aUSDCError } = useReadContract({
+    chainId: base.id, address: ADDRESSES.aUSDC, abi: ERC20_ABI, functionName: "balanceOf", args: [vaultAddress]
+  })
+  const { data: vUSDCBalance, error: vUSDCError } = useReadContract({
+    chainId: base.id, address: ADDRESSES.vUSDC, abi: ERC20_ABI, functionName: "balanceOf", args: [vaultAddress]
   })
 
   // Прямой запрос к Aave Pool — показывает суммарный collateral и debt (в USD, 8 decimals)
@@ -100,32 +97,19 @@ function VaultLogger({ vaultAddress, index }: { vaultAddress: `0x${string}`; ind
     } else {
       console.log("aaveAccount:               loading...")
     }
-    console.log("── Aave Data Provider (getUserReserveData) ──")
-    if (wethReserve) {
-      const wr = wethReserve as unknown as readonly [bigint, bigint, bigint, ...unknown[]]
-      // [currentATokenBalance, currentStableDebt, currentVariableDebt, ...]
-      console.log("WETH supplyBalance (aToken): ", formatUnits(wr[0], 18) + " WETH")
-      console.log("WETH variableDebt:           ", formatUnits(wr[2], 18) + " WETH")
-    } else if (wethReserveError) {
-      console.error("wethReserve Error:           ", wethReserveError.message)
-    } else if (wethLoading) {
-      console.log("wethReserve:                 loading...")
-    }
+    console.log("── aToken Balances (balanceOf) ──────────────")
+    console.log("aWETH (Collateral): ", aWETHBalance ? formatUnits(aWETHBalance as bigint, 18) + " WETH" : "0")
+    if (aWETHError) console.error("aWETH Error:      ", aWETHError.message)
+    console.log("vWETH (Debt):       ", vWETHBalance ? formatUnits(vWETHBalance as bigint, 18) + " WETH" : "0")
 
-    if (usdcReserve) {
-      const ur = usdcReserve as unknown as readonly [bigint, bigint, bigint, ...unknown[]]
-      console.log("USDC supplyBalance (aToken): ", formatUnits(ur[0], 6) + " USDC")
-      console.log("USDC variableDebt:           ", formatUnits(ur[2], 6) + " USDC")
-    } else if (usdcReserveError) {
-      console.error("usdcReserve Error:           ", usdcReserveError.message)
-    } else if (usdcLoading) {
-      console.log("usdcReserve:                 loading...")
-    }
+    console.log("aUSDC (Collateral): ", aUSDCBalance ? formatUnits(aUSDCBalance as bigint, 6) + " USDC" : "0")
+    if (aUSDCError) console.error("aUSDC Error:      ", aUSDCError.message)
+    console.log("vUSDC (Debt):       ", vUSDCBalance ? formatUnits(vUSDCBalance as bigint, 6) + " USDC" : "0")
     console.log("needsProtection:    ", needsProtection)
     console.log("paused:             ", paused)
     console.log("rewardBps:          ", rewardBps ? Number(rewardBps).toString() + " bps" : "—")
     console.groupEnd()
-  }, [hf, wethReserve, wethReserveError, wethLoading, usdcReserve, usdcReserveError, usdcLoading, aaveAccount, warningHF, targetHF, paused, needsProtection, owner, rewardBps, vaultAddress, index])
+  }, [hf, aWETHBalance, vWETHBalance, aUSDCBalance, vUSDCBalance, aaveAccount, warningHF, targetHF, paused, needsProtection, owner, rewardBps, vaultAddress, index])
 
   return null // визуально ничего не рендерит
 }
@@ -155,12 +139,12 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
     functionName: "getHealthFactor",
   })
 
-  const { data: wethReserveRaw, refetch: refetchSupply } = useReadContract({
+  const { data: aWETHBalance, refetch: refetchSupply } = useReadContract({
     chainId: base.id,
-    address: ADDRESSES.AavePoolDataProvider,
-    abi: AAVE_POOL_DATA_PROVIDER_ABI,
-    functionName: "getUserReserveData",
-    args: [ADDRESSES.WETH, vaultAddress],
+    address: ADDRESSES.aWETH,
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    args: [vaultAddress],
   })
 
   const { data: warningHFRaw } = useReadContract({
@@ -193,9 +177,7 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
 
   // Данные для UI
   const healthFactor = hfToNumber(healthFactorRaw as bigint | undefined)
-  // wethReserveRaw — tuple [currentATokenBalance, currentStableDebt, currentVariableDebt, ...]
-  const wethATokenBalance = wethReserveRaw ? (wethReserveRaw as unknown as readonly bigint[])[0] : undefined
-  const supplyBalanceWETH = wethATokenBalance ? Number(formatUnits(wethATokenBalance, 18)) : 0
+  const supplyBalanceWETH = aWETHBalance ? Number(formatUnits(aWETHBalance as bigint, 18)) : 0
   const warningHF = hfToNumber(warningHFRaw as bigint | undefined) || 1.2
   const targetHF = hfToNumber(targetHFRaw as bigint | undefined) || 1.5
   const isHealthy = healthFactor === 999 || healthFactor >= 1.5
