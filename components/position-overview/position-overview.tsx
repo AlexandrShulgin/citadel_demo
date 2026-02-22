@@ -8,6 +8,7 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi"
 import { parseUnits, formatUnits, encodeAbiParameters, parseAbiParameters, maxUint256 } from "viem"
+import { base } from "wagmi/chains"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card/card"
 import { Badge } from "@/components/ui/badge/badge"
 import { Button } from "@/components/ui/button/button"
@@ -153,37 +154,37 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
   function handleApproveWETH() {
     if (!inputAmount) return
     const amount = parseUnits(inputAmount, 18)
-    writeContract({ address: ADDRESSES.WETH, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, amount] })
+    writeContract({ chainId: base.id, address: ADDRESSES.WETH, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, amount] })
   }
 
   function handleDeposit() {
     if (!inputAmount) return
     const amount = parseUnits(inputAmount, 18)
-    writeContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "deposit", args: [ADDRESSES.WETH, amount] })
+    writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "deposit", args: [ADDRESSES.WETH, amount] })
   }
 
   function handleWithdraw() {
     if (!inputAmount) return
     const amount = parseUnits(inputAmount, 18)
-    writeContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "withdraw", args: [ADDRESSES.WETH, amount] })
+    writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "withdraw", args: [ADDRESSES.WETH, amount] })
   }
 
   function handleBorrow() {
     if (!inputAmount) return
     const amount = parseUnits(inputAmount, 6)
-    writeContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "borrow", args: [ADDRESSES.USDC, amount] })
+    writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "borrow", args: [ADDRESSES.USDC, amount] })
   }
 
   function handleApproveUSDC() {
     if (!inputAmount) return
     const amount = parseUnits(inputAmount, 6)
-    writeContract({ address: ADDRESSES.USDC, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, amount] })
+    writeContract({ chainId: base.id, address: ADDRESSES.USDC, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, amount] })
   }
 
   function handleRepay() {
     if (!inputAmount) return
     const amount = parseUnits(inputAmount, 6)
-    writeContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "repay", args: [ADDRESSES.USDC, amount] })
+    writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "repay", args: [ADDRESSES.USDC, amount] })
   }
 
   function handleAutoLoop() {
@@ -192,12 +193,12 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
       parseAbiParameters("uint8, address, uint8, uint256, uint256"),
       [0, ADDRESSES.USDC, 3, BigInt(100), minHFAfter]
     )
-    writeContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "executeFromModule", args: [ADDRESSES.LoopModule, data] })
+    writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "executeFromModule", args: [ADDRESSES.LoopModule, data] })
   }
 
   function handleSetWarningHF() {
     const warnRaw = BigInt(Math.round(sliderHF * 1e18))
-    writeContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "setWarningHF", args: [warnRaw] })
+    writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "setWarningHF", args: [warnRaw] })
   }
 
   return (
