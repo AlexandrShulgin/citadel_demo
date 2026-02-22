@@ -12,7 +12,7 @@ export const ADDRESSES = {
   AavePool: "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5" as `0x${string}`,
   AavePoolDataProvider: "0x2D8a3C5677189723c4cB8873cfC9CC8976DEe40E" as `0x${string}`,
   AaveOracle: "0xB56c2f0b653B2e0b10c9B928c8580ac5df2C267c" as `0x${string}`,
-  WETH: "0x4200000000000000000000000000000000000006" as `0x${string}`,
+  WETH: "0xD4a0e0b9149BCee3C920d2E00b5dE09138fd8bb7" as `0x${string}`,
   USDC: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as `0x${string}`,
   SwapRouter: "0x2626664c2603336E57B271c5C0b26F421741e481" as `0x${string}`,
 } as const
