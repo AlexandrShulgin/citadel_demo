@@ -48,14 +48,14 @@ function VaultLogger({ vaultAddress, index }: { vaultAddress: `0x${string}`; ind
   const { data: hf } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getHealthFactor" })
 
   // Читаем collateral и debt напрямую из Aave Data Provider (underlying адрес → aToken баланс)
-  const { data: wethReserve } = useReadContract({
+  const { data: wethReserve, error: wethReserveError, isLoading: wethLoading } = useReadContract({
     chainId: base.id,
     address: ADDRESSES.AavePoolDataProvider,
     abi: AAVE_POOL_DATA_PROVIDER_ABI,
     functionName: "getUserReserveData",
     args: [ADDRESSES.WETH, vaultAddress],
   })
-  const { data: usdcReserve } = useReadContract({
+  const { data: usdcReserve, error: usdcReserveError, isLoading: usdcLoading } = useReadContract({
     chainId: base.id,
     address: ADDRESSES.AavePoolDataProvider,
     abi: AAVE_POOL_DATA_PROVIDER_ABI,
@@ -106,21 +106,26 @@ function VaultLogger({ vaultAddress, index }: { vaultAddress: `0x${string}`; ind
       // [currentATokenBalance, currentStableDebt, currentVariableDebt, ...]
       console.log("WETH supplyBalance (aToken): ", formatUnits(wr[0], 18) + " WETH")
       console.log("WETH variableDebt:           ", formatUnits(wr[2], 18) + " WETH")
-    } else {
-      console.log("wethReserve:                 loading / error")
+    } else if (wethReserveError) {
+      console.error("wethReserve Error:           ", wethReserveError.message)
+    } else if (wethLoading) {
+      console.log("wethReserve:                 loading...")
     }
+
     if (usdcReserve) {
       const ur = usdcReserve as unknown as readonly [bigint, bigint, bigint, ...unknown[]]
       console.log("USDC supplyBalance (aToken): ", formatUnits(ur[0], 6) + " USDC")
       console.log("USDC variableDebt:           ", formatUnits(ur[2], 6) + " USDC")
-    } else {
-      console.log("usdcReserve:                 loading / error")
+    } else if (usdcReserveError) {
+      console.error("usdcReserve Error:           ", usdcReserveError.message)
+    } else if (usdcLoading) {
+      console.log("usdcReserve:                 loading...")
     }
     console.log("needsProtection:    ", needsProtection)
     console.log("paused:             ", paused)
     console.log("rewardBps:          ", rewardBps ? Number(rewardBps).toString() + " bps" : "—")
     console.groupEnd()
-  }, [hf, wethReserve, usdcReserve, aaveAccount, warningHF, targetHF, paused, needsProtection, owner, rewardBps, vaultAddress, index])
+  }, [hf, wethReserve, wethReserveError, wethLoading, usdcReserve, usdcReserveError, usdcLoading, aaveAccount, warningHF, targetHF, paused, needsProtection, owner, rewardBps, vaultAddress, index])
 
   return null // визуально ничего не рендерит
 }
