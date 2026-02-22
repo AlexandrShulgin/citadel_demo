@@ -471,7 +471,7 @@ export function PositionOverview() {
     query: { enabled: mounted && isConnected && !!address },
   })
 
-  const vaults = (vaultAddresses as `0x${string}`[] | undefined) ?? []
+  const vaults = ((vaultAddresses as `0x${string}`[] | undefined) ?? []).slice(0, 1)
 
   // Выводим vault'ы в консоль для отладки
   useEffect(() => {
