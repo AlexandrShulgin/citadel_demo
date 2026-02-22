@@ -44,8 +44,8 @@ function shortAddr(addr: string) {
 
 function VaultLogger({ vaultAddress, index }: { vaultAddress: `0x${string}`; index: number }) {
   const { data: hf } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getHealthFactor" })
-  const { data: supplyWETH } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getSupplyBalance", args: [ADDRESSES.WETH] })
-  const { data: supplyUSDC } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getSupplyBalance", args: [ADDRESSES.USDC] })
+  const { data: supplyWETH, error: supplyWETHError } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getSupplyBalance", args: [ADDRESSES.WETH] })
+  const { data: supplyUSDC, error: supplyUSDCError } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getSupplyBalance", args: [ADDRESSES.USDC] })
   const { data: warningHF } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "warningHF" })
   const { data: targetHF } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "targetHF" })
   const { data: paused } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "paused" })
@@ -67,9 +67,11 @@ function VaultLogger({ vaultAddress, index }: { vaultAddress: `0x${string}`; ind
     console.log("WETH addr:          ", ADDRESSES.WETH)
     console.log("supplyWETH (raw):   ", String(supplyWETH ?? "undefined"))
     console.log("supplyWETH:         ", supplyWETH ? formatUnits(supplyWETH as bigint, 18) + " WETH" : "❌ 0 / undefined")
+    if (supplyWETHError) console.error("supplyWETH error:   ", supplyWETHError.message)
     console.log("USDC addr:          ", ADDRESSES.USDC)
     console.log("supplyUSDC (raw):   ", String(supplyUSDC ?? "undefined"))
     console.log("supplyUSDC:         ", supplyUSDC ? formatUnits(supplyUSDC as bigint, 6) + " USDC" : "0")
+    if (supplyUSDCError) console.error("supplyUSDC error:   ", supplyUSDCError.message)
     console.log("needsProtection:    ", needsProtection)
     console.log("paused:             ", paused)
     console.log("rewardBps:          ", rewardBps ? Number(rewardBps).toString() + " bps" : "—")
@@ -80,7 +82,7 @@ function VaultLogger({ vaultAddress, index }: { vaultAddress: `0x${string}`; ind
       console.warn("  3. deposit() ещё не подтверждён")
     }
     console.groupEnd()
-  }, [hf, supplyWETH, supplyUSDC, warningHF, targetHF, paused, needsProtection, owner, rewardBps, vaultAddress, index])
+  }, [hf, supplyWETH, supplyWETHError, supplyUSDC, supplyUSDCError, warningHF, targetHF, paused, needsProtection, owner, rewardBps, vaultAddress, index])
 
   return null // визуально ничего не рендерит
 }
