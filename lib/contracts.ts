@@ -21,7 +21,7 @@ export const ADDRESSES = {
   SwapRouter: "0x2626664c2603336E57B271c5C0b26F421741e481" as `0x${string}`,
 } as const
 
-// Параметры свопов
+// Параметры свопов 
 export const SWAP_POOL_FEE = 3000 // 0.3%
 
 // ABI VaultFactory — только нужные функции
