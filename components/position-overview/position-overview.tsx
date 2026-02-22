@@ -23,6 +23,7 @@ import {
   CITADEL_VAULT_ABI,
   ERC20_ABI,
   AAVE_POOL_ABI,
+  AAVE_POOL_DATA_PROVIDER_ABI,
 } from "@/lib/contracts"
 
 // ──────────────────────────────────────────────────────────────
@@ -45,8 +46,22 @@ function shortAddr(addr: string) {
 
 function VaultLogger({ vaultAddress, index }: { vaultAddress: `0x${string}`; index: number }) {
   const { data: hf } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getHealthFactor" })
-  const { data: supplyWETH, error: supplyWETHError } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getSupplyBalance", args: [ADDRESSES.aWETH] })
-  const { data: supplyUSDC, error: supplyUSDCError } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getSupplyBalance", args: [ADDRESSES.aUSDC] })
+
+  // Читаем collateral и debt напрямую из Aave Data Provider (underlying адрес → aToken баланс)
+  const { data: wethReserve } = useReadContract({
+    chainId: base.id,
+    address: ADDRESSES.AavePoolDataProvider,
+    abi: AAVE_POOL_DATA_PROVIDER_ABI,
+    functionName: "getUserReserveData",
+    args: [ADDRESSES.WETH, vaultAddress],
+  })
+  const { data: usdcReserve } = useReadContract({
+    chainId: base.id,
+    address: ADDRESSES.AavePoolDataProvider,
+    abi: AAVE_POOL_DATA_PROVIDER_ABI,
+    functionName: "getUserReserveData",
+    args: [ADDRESSES.USDC, vaultAddress],
+  })
 
   // Прямой запрос к Aave Pool — показывает суммарный collateral и debt (в USD, 8 decimals)
   const { data: aaveAccount } = useReadContract({
@@ -85,25 +100,27 @@ function VaultLogger({ vaultAddress, index }: { vaultAddress: `0x${string}`; ind
     } else {
       console.log("aaveAccount:               loading...")
     }
-    console.log("── Vault getSupplyBalance ──────────────────")
-    console.log("supplyWETH (raw):   ", String(supplyWETH ?? "undefined"))
-    console.log("supplyWETH:         ", supplyWETH ? formatUnits(supplyWETH as bigint, 18) + " WETH" : "❌ 0 / undefined")
-    if (supplyWETHError) console.error("supplyWETH error:   ", supplyWETHError.message)
-    console.log("USDC addr:          ", ADDRESSES.USDC)
-    console.log("supplyUSDC (raw):   ", String(supplyUSDC ?? "undefined"))
-    console.log("supplyUSDC:         ", supplyUSDC ? formatUnits(supplyUSDC as bigint, 6) + " USDC" : "0")
-    if (supplyUSDCError) console.error("supplyUSDC error:   ", supplyUSDCError.message)
+    console.log("── Aave Data Provider (getUserReserveData) ──")
+    if (wethReserve) {
+      const wr = wethReserve as unknown as readonly [bigint, bigint, bigint, ...unknown[]]
+      // [currentATokenBalance, currentStableDebt, currentVariableDebt, ...]
+      console.log("WETH supplyBalance (aToken): ", formatUnits(wr[0], 18) + " WETH")
+      console.log("WETH variableDebt:           ", formatUnits(wr[2], 18) + " WETH")
+    } else {
+      console.log("wethReserve:                 loading / error")
+    }
+    if (usdcReserve) {
+      const ur = usdcReserve as unknown as readonly [bigint, bigint, bigint, ...unknown[]]
+      console.log("USDC supplyBalance (aToken): ", formatUnits(ur[0], 6) + " USDC")
+      console.log("USDC variableDebt:           ", formatUnits(ur[2], 6) + " USDC")
+    } else {
+      console.log("usdcReserve:                 loading / error")
+    }
     console.log("needsProtection:    ", needsProtection)
     console.log("paused:             ", paused)
     console.log("rewardBps:          ", rewardBps ? Number(rewardBps).toString() + " bps" : "—")
-    if (!supplyWETH || (supplyWETH as bigint) === 0n) {
-      console.warn("[Citadel] supplyWETH = 0. Возможные причины:")
-      console.warn("  1. WETH отправлен напрямую на vault (нужно через vault.deposit())")
-      console.warn("  2. Адрес WETH не совпадает:", ADDRESSES.WETH)
-      console.warn("  3. deposit() ещё не подтверждён")
-    }
     console.groupEnd()
-  }, [hf, supplyWETH, supplyWETHError, supplyUSDC, supplyUSDCError, warningHF, targetHF, paused, needsProtection, owner, rewardBps, vaultAddress, index])
+  }, [hf, wethReserve, usdcReserve, aaveAccount, warningHF, targetHF, paused, needsProtection, owner, rewardBps, vaultAddress, index])
 
   return null // визуально ничего не рендерит
 }
@@ -133,12 +150,12 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
     functionName: "getHealthFactor",
   })
 
-  const { data: supplyBalanceRaw, refetch: refetchSupply } = useReadContract({
+  const { data: wethReserveRaw, refetch: refetchSupply } = useReadContract({
     chainId: base.id,
-    address: vaultAddress,
-    abi: CITADEL_VAULT_ABI,
-    functionName: "getSupplyBalance",
-    args: [ADDRESSES.aWETH], // aToken адрес, не underlying
+    address: ADDRESSES.AavePoolDataProvider,
+    abi: AAVE_POOL_DATA_PROVIDER_ABI,
+    functionName: "getUserReserveData",
+    args: [ADDRESSES.WETH, vaultAddress],
   })
 
   const { data: warningHFRaw } = useReadContract({
@@ -171,7 +188,9 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
 
   // Данные для UI
   const healthFactor = hfToNumber(healthFactorRaw as bigint | undefined)
-  const supplyBalanceWETH = supplyBalanceRaw ? Number(formatUnits(supplyBalanceRaw as bigint, 18)) : 0
+  // wethReserveRaw — tuple [currentATokenBalance, currentStableDebt, currentVariableDebt, ...]
+  const wethATokenBalance = wethReserveRaw ? (wethReserveRaw as unknown as readonly bigint[])[0] : undefined
+  const supplyBalanceWETH = wethATokenBalance ? Number(formatUnits(wethATokenBalance, 18)) : 0
   const warningHF = hfToNumber(warningHFRaw as bigint | undefined) || 1.2
   const targetHF = hfToNumber(targetHFRaw as bigint | undefined) || 1.5
   const isHealthy = healthFactor === 999 || healthFactor >= 1.5

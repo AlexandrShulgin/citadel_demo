@@ -346,3 +346,28 @@ export const AAVE_POOL_ABI = [
     ],
   },
 ] as const
+
+// ABI Aave V3 Pool Data Provider
+// getUserReserveData(underlying, user) → currentATokenBalance, currentVariableDebt, ...
+export const AAVE_POOL_DATA_PROVIDER_ABI = [
+  {
+    name: "getUserReserveData",
+    type: "function",
+    stateMutability: "view",
+    inputs: [
+      { name: "asset", type: "address" },       // underlying token (WETH, USDC)
+      { name: "user", type: "address" },         // адрес vault
+    ],
+    outputs: [
+      { name: "currentATokenBalance", type: "uint256" },   // ← баланс collateral
+      { name: "currentStableDebt", type: "uint256" },
+      { name: "currentVariableDebt", type: "uint256" },    // ← баланс долга
+      { name: "principalStableDebt", type: "uint256" },
+      { name: "scaledVariableDebt", type: "uint256" },
+      { name: "stableRate", type: "uint256" },
+      { name: "liquidityRate", type: "uint256" },
+      { name: "stableRateLastUpdated", type: "uint40" },
+      { name: "usageAsCollateralEnabled", type: "bool" },
+    ],
+  },
+] as const
