@@ -4,10 +4,7 @@ import { Shield, TrendingUp, Settings, Activity, Zap } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card/card"
 import { Button } from "@/components/ui/button/button"
 import { Badge } from "@/components/ui/badge/badge"
-import { HealthFactorGauge } from "@/components/health-factor-gauge/health-factor-gauge"
 import { PositionOverview } from "@/components/position-overview/position-overview"
-import { ProtectionHistory } from "@/components/protection-history/protection-history"
-import { HealthFactorChart } from "@/components/health-factor-chart/health-factor-chart"
 import { useState, useEffect } from "react"
 import styles from "./page.module.css"
 
@@ -65,64 +62,12 @@ export default function Home() {
             </div>
           </div>
         </div>
-
-        {/* Protocol Stats */}
-        <div className={styles.statsGrid}>
-          <Card className={styles.statCard}>
-            <CardHeader className={styles.statHeader}>
-              <CardTitle className={styles.statLabel}>Total Value Locked</CardTitle>
-              <TrendingUp className={styles.trendingUp} />
-            </CardHeader>
-            <CardContent>
-              <div className={styles.value}>${(tvl / 1000000).toFixed(1)}M</div>
-              <p className={styles.change}>+12.5% this week</p>
-            </CardContent>
-          </Card>
-
-          <Card className={styles.statCard}>
-            <CardHeader className={styles.statHeader}>
-              <CardTitle className={styles.statLabel}>Assets Under Protection</CardTitle>
-              <Shield className={styles.statIconPrimary} />
-            </CardHeader>
-            <CardContent>
-              <div className={styles.value}>${(assetsProtected / 1000000).toFixed(1)}M</div>
-              <p className={styles.change}>+8.2% this week</p>
-            </CardContent>
-          </Card>
-
-          <Card className={styles.statCard}>
-            <CardHeader className={styles.statHeader}>
-              <CardTitle className={styles.statLabel}>Active Vaults</CardTitle>
-              <Activity className={styles.statIconPrimary} />
-            </CardHeader>
-            <CardContent>
-              <div className={styles.value}>{vaults}</div>
-              <p className={styles.monitoringText}>Monitoring 24/7</p>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Main Grid */}
         <div className={styles.mainGrid}>
-          {/* Health Factor Gauge */}
-          <div className={styles.gaugeContainer}>
-            <HealthFactorGauge />
-          </div>
-
           {/* Position Overview */}
           <div className={styles.overviewContainer}>
             <PositionOverview />
           </div>
-        </div>
-
-        {/* Health Factor Chart */}
-        <div className={styles.chartContainer}>
-          <HealthFactorChart />
-        </div>
-
-        {/* Protection History */}
-        <div className={styles.historyContainer}>
-          <ProtectionHistory />
         </div>
       </main>
     </div>
