@@ -147,6 +147,22 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
     args: [vaultAddress],
   })
 
+  const { data: vUSDCBalance, refetch: refetchBorrow } = useReadContract({
+    chainId: base.id,
+    address: ADDRESSES.vUSDC,
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    args: [vaultAddress],
+  })
+
+  const { data: aaveAccount, refetch: refetchAave } = useReadContract({
+    chainId: base.id,
+    address: ADDRESSES.AavePool,
+    abi: AAVE_POOL_ABI,
+    functionName: "getUserAccountData",
+    args: [vaultAddress],
+  })
+
   const { data: warningHFRaw } = useReadContract({
     chainId: base.id,
     address: vaultAddress,
@@ -175,9 +191,24 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
     functionName: "needsProtection",
   })
 
+  const { data: rewardBpsRaw } = useReadContract({
+    chainId: base.id,
+    address: vaultAddress,
+    abi: CITADEL_VAULT_ABI,
+    functionName: "rewardBps",
+  })
+
   // Данные для UI
   const healthFactor = hfToNumber(healthFactorRaw as bigint | undefined)
   const supplyBalanceWETH = aWETHBalance ? Number(formatUnits(aWETHBalance as bigint, 18)) : 0
+  const debtBalanceUSDC = vUSDCBalance ? Number(formatUnits(vUSDCBalance as bigint, 6)) : 0
+
+  const accData = aaveAccount as unknown as readonly [bigint, bigint, bigint, bigint, bigint, bigint] | undefined
+  const totalCollateralUSD = accData ? Number(formatUnits(accData[0], 8)) : 0
+  const totalDebtUSD = accData ? Number(formatUnits(accData[1], 8)) : 0
+  const availableBorrowUSD = accData ? Number(formatUnits(accData[2], 8)) : 0
+  const rewardBps = rewardBpsRaw ? Number(rewardBpsRaw) : 0
+
   const warningHF = hfToNumber(warningHFRaw as bigint | undefined) || 1.2
   const targetHF = hfToNumber(targetHFRaw as bigint | undefined) || 1.5
   const isHealthy = healthFactor === 999 || healthFactor >= 1.5
@@ -193,6 +224,8 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
   function refetchAll() {
     refetchHF()
     refetchSupply()
+    refetchBorrow()
+    refetchAave()
   }
 
   // Транзакции
@@ -252,10 +285,7 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
       <div className={styles.positionHeader}>
         <div className={styles.assetInfo}>
           <div className={styles.assetTitleWrapper}>
-            <h3 className={styles.assetName}>Vault {index + 1}</h3>
-            <span className={styles.assetDescription} title={vaultAddress}>
-              {shortAddr(vaultAddress)}
-            </span>
+            <h3 className={styles.assetName}>WETH / USDC</h3>
             {isPaused && (
               <Badge variant="outline" className={styles.protectedBadge} style={{ color: "orange" }}>
                 Paused
@@ -267,27 +297,26 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
               </Badge>
             )}
           </div>
-          <p className={styles.assetDescription}>WETH Collateral · Base mainnet</p>
+          <p className={styles.assetDescription}>{shortAddr(vaultAddress)}</p>
         </div>
 
         <div className={styles.headerActions}>
           <Button size="sm" variant="outline" className={styles.headerButton}
-            onClick={() => setModalType("supply")} disabled={!!isPaused}>
-            SUPPLY
+            onClick={() => { }} disabled={!!isPaused}>
+            Deposit
           </Button>
           <Button size="sm" variant="outline" className={styles.headerButton}
-            onClick={() => setModalType("borrow")} disabled={!!isPaused}>
-            BORROW
+            onClick={() => { }} disabled={!!isPaused}>
+            Withdraw
           </Button>
           <Button size="sm" variant="outline" className={styles.headerButton}
-            onClick={refetchAll} title="Обновить">
-            <RefreshCw size={14} />
+            onClick={() => { }} disabled={!!isPaused}>
+            Borrow
           </Button>
-        </div>
-
-        <div className={`${styles.changeIndicator} ${isHealthy ? styles.positive : styles.negative}`}>
-          {isHealthy ? <TrendingUp className={styles.changeIcon} /> : <TrendingDown className={styles.changeIcon} />}
-          <span>HF {hfDisplay}</span>
+          <Button size="sm" variant="outline" className={styles.headerButton}
+            onClick={() => { }} disabled={!!isPaused}>
+            Repay
+          </Button>
         </div>
       </div>
 
@@ -296,13 +325,27 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
         <div>
           <p className={styles.metricLabel}>Collateral (WETH)</p>
           <p className={styles.metricValue}>{supplyBalanceWETH > 0 ? supplyBalanceWETH.toFixed(4) : "—"} WETH</p>
-          <p className={styles.collateralUSD}>Supply balance</p>
+          <p className={styles.collateralUSD}>{totalCollateralUSD.toFixed(2)} USD</p>
+        </div>
+        <div>
+          <p className={styles.metricLabel}>Debt (USDC)</p>
+          <p className={styles.metricValue}>{debtBalanceUSDC > 0 ? debtBalanceUSDC.toFixed(2) : "—"} USDC</p>
+          <p className={styles.collateralUSD}>{totalDebtUSD.toFixed(2)} USD</p>
         </div>
         <div>
           <p className={styles.metricLabel}>Health Factor</p>
           <p className={`${styles.metricValue} ${hfColor}`}>{hfDisplay}</p>
           <p className={styles.metricLabel}>Current</p>
         </div>
+        <div>
+          <p className={styles.metricLabel}>Status</p>
+          <p className={`${styles.metricValue} ${isHealthy ? styles.statusHealthy : styles.statusMonitor}`}>
+            {needsProtectionRaw ? "⚠ Protect" : isHealthy ? "Healthy" : "Monitor"}
+          </p>
+          <p className={styles.metricLabel}>Active</p>
+        </div>
+      </div>
+      <div className={styles.metricsGrid}>
         <div>
           <p className={styles.metricLabel}>Warning HF</p>
           <p className={styles.metricValue}>{warningHF.toFixed(2)}</p>
@@ -314,11 +357,12 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
           <p className={styles.metricLabel}>After rebalance</p>
         </div>
         <div>
-          <p className={styles.metricLabel}>Status</p>
-          <p className={`${styles.metricValue} ${isHealthy ? styles.statusHealthy : styles.statusMonitor}`}>
-            {needsProtectionRaw ? "⚠ Protect" : isHealthy ? "Healthy" : "Monitor"}
-          </p>
-          <p className={styles.metricLabel}>Active</p>
+          <p className={styles.metricLabel}>Available to Borrow</p>
+          <p className={styles.metricValue}>{availableBorrowUSD.toFixed(2)} USD</p>
+        </div>
+        <div>
+          <p className={styles.metricLabel}>Reward BPS</p>
+          <p className={styles.metricValue}>{rewardBps}</p>
         </div>
       </div>
 
@@ -331,7 +375,7 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
         <div className={styles.controlsRow}>
           <div className={styles.sliderWrapper}>
             <div className={styles.sliderRow}>
-              <span className={styles.metricLabel}>Minimum Health Factor</span>
+              <span className={styles.metricLabel}>Warning Health Factor</span>
               <span className={styles.hfValue}>{sliderHF.toFixed(1)}</span>
             </div>
             <Slider
@@ -351,17 +395,61 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
             {isBusy ? <Loader2 size={14} className="animate-spin" /> : "SET WARNING HF"}
           </Button>
         </div>
-
-        <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-          <Button size="sm" variant="outline" className={styles.headerButton}
-            onClick={handleAutoLoop} disabled={isBusy || !!isPaused}>
-            {isBusy ? <Loader2 size={14} className="animate-spin" /> : "AUTO LOOP"}
+        <div className={styles.controlsRow} style={{ marginTop: '1rem' }}>
+          <div className={styles.sliderWrapper}>
+            <div className={styles.sliderRow}>
+              <span className={styles.metricLabel}>Target Health Factor</span>
+              <span className={styles.hfValue}>{sliderHF.toFixed(1)}</span>
+            </div>
+            <Slider
+              value={[sliderHF]}
+              onValueChange={(v) => setSliderHF(v[0])}
+              min={1.1} max={2.5} step={0.1}
+              className={styles.slider}
+            />
+            <div className={styles.sliderLabels}>
+              <span>1.1</span>
+              <span>2.5</span>
+            </div>
+          </div>
+          <Button size="sm" variant="default"
+            className={`${styles.actionButton} ${styles.protectionButton}`}
+            onClick={handleSetWarningHF} disabled={isBusy}>
+            {isBusy ? <Loader2 size={14} className="animate-spin" /> : "SET TARGET HF"}
           </Button>
         </div>
 
         <p className={styles.autoProtectNote}>
-          Smart contract will automatically protect your position when health factor drops below{" "}
-          <span className={styles.autoProtectValue}>{sliderHF.toFixed(1)}</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button size="sm" variant="outline" className={styles.headerButton}
+              onClick={handleAutoLoop} disabled={isBusy || !!isPaused}>
+              {isBusy ? <Loader2 size={14} className="animate-spin" /> : "AUTO LOOP"}
+            </Button>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button size="sm" variant="outline" className={styles.headerButton}
+              onClick={handleAutoLoop} disabled={isBusy || !!isPaused}>
+              {isBusy ? <Loader2 size={14} className="animate-spin" /> : "AUTO LOOP"}
+            </Button>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button size="sm" variant="outline" className={styles.headerButton}
+              onClick={handleAutoLoop} disabled={isBusy || !!isPaused}>
+              {isBusy ? <Loader2 size={14} className="animate-spin" /> : "AUTO LOOP"}
+            </Button>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button size="sm" variant="outline" className={styles.headerButton}
+              onClick={handleAutoLoop} disabled={isBusy || !!isPaused}>
+              {isBusy ? <Loader2 size={14} className="animate-spin" /> : "AUTO LOOP"}
+            </Button>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button size="sm" variant="outline" className={styles.headerButton}
+              onClick={handleAutoLoop} disabled={isBusy || !!isPaused}>
+              {isBusy ? <Loader2 size={14} className="animate-spin" /> : "AUTO LOOP"}
+            </Button>
+          </div>
         </p>
 
         {isTxSuccess && (
@@ -517,6 +605,10 @@ export function PositionOverview() {
               ? `Ваши vault'ы на Base mainnet · ${shortAddr(address!)}`
               : "Подключите кошелёк для просмотра позиций"}
           </CardDescription>
+          <Button size="sm" variant="outline" className={styles.headerButton}
+            onClick={() => window.location.reload()} title="Обновить">
+            <RefreshCw size={14} />
+          </Button>
         </CardHeader>
 
         <CardContent>
