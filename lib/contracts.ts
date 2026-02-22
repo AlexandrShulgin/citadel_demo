@@ -13,9 +13,9 @@ export const ADDRESSES = {
   AavePoolDataProvider: "0x2D8a3C5677189723c4cB8873cfC9CC8976DEe40E" as `0x${string}`,
   AaveOracle: "0xB56c2f0b653B2e0b10c9B928c8580ac5df2C267c" as `0x${string}`,
   WETH: "0x4200000000000000000000000000000000000006" as `0x${string}`,  // underlying (для approve + deposit)
-  aWETH: "0xD4a0e0b9149BCee3C920d2E00b5dE09138fd8bb7" as `0x${string}`, // aToken (для getSupplyBalance)
+  aWETH: "0x24e6e0795b3c7c71D965fCc4f371803d1c1DcA1E" as `0x${string}`, // aToken (для getSupplyBalance)
   USDC: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as `0x${string}`,  // underlying (для approve + repay)
-  aUSDC: "0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB" as `0x${string}`, // aToken (для getSupplyBalance)
+  aUSDC: "0x59dca05b6c26dbd64b5381374aAaC5CD05644C28" as `0x${string}`, // aToken (для getSupplyBalance)
   SwapRouter: "0x2626664c2603336E57B271c5C0b26F421741e481" as `0x${string}`,
 } as const
 
