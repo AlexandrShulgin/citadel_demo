@@ -54,21 +54,31 @@ function VaultLogger({ vaultAddress, index }: { vaultAddress: `0x${string}`; ind
   const { data: rewardBps } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "rewardBps" })
 
   useEffect(() => {
-    // Логируем только когда хотя бы HF загружен
     if (hf === undefined) return
 
     const hfNum = hf === maxUint256 ? Infinity : Number(formatUnits(hf as bigint, 18))
 
     console.group(`[Citadel] Vault #${index + 1}: ${vaultAddress}`)
-    console.log("owner:           ", owner)
-    console.log("healthFactor:    ", hfNum === Infinity ? "∞ (no debt)" : hfNum.toFixed(4))
-    console.log("warningHF:       ", warningHF ? Number(formatUnits(warningHF as bigint, 18)).toFixed(2) : "—")
-    console.log("targetHF:        ", targetHF ? Number(formatUnits(targetHF as bigint, 18)).toFixed(2) : "—")
-    console.log("supplyWETH:      ", supplyWETH ? formatUnits(supplyWETH as bigint, 18) + " WETH" : "0")
-    console.log("supplyUSDC:      ", supplyUSDC ? formatUnits(supplyUSDC as bigint, 6) + " USDC" : "0")
-    console.log("needsProtection: ", needsProtection)
-    console.log("paused:          ", paused)
-    console.log("rewardBps:       ", rewardBps ? Number(rewardBps).toString() + " bps" : "—")
+    console.log("owner:              ", owner)
+    console.log("healthFactor:       ", hfNum === Infinity ? "∞ (no debt)" : hfNum.toFixed(6))
+    console.log("healthFactor (raw): ", String(hf))
+    console.log("warningHF:          ", warningHF ? Number(formatUnits(warningHF as bigint, 18)).toFixed(2) : "—")
+    console.log("targetHF:           ", targetHF ? Number(formatUnits(targetHF as bigint, 18)).toFixed(2) : "—")
+    console.log("WETH addr:          ", ADDRESSES.WETH)
+    console.log("supplyWETH (raw):   ", String(supplyWETH ?? "undefined"))
+    console.log("supplyWETH:         ", supplyWETH ? formatUnits(supplyWETH as bigint, 18) + " WETH" : "❌ 0 / undefined")
+    console.log("USDC addr:          ", ADDRESSES.USDC)
+    console.log("supplyUSDC (raw):   ", String(supplyUSDC ?? "undefined"))
+    console.log("supplyUSDC:         ", supplyUSDC ? formatUnits(supplyUSDC as bigint, 6) + " USDC" : "0")
+    console.log("needsProtection:    ", needsProtection)
+    console.log("paused:             ", paused)
+    console.log("rewardBps:          ", rewardBps ? Number(rewardBps).toString() + " bps" : "—")
+    if (!supplyWETH || (supplyWETH as bigint) === 0n) {
+      console.warn("[Citadel] supplyWETH = 0. Возможные причины:")
+      console.warn("  1. WETH отправлен напрямую на vault (нужно через vault.deposit())")
+      console.warn("  2. Адрес WETH не совпадает:", ADDRESSES.WETH)
+      console.warn("  3. deposit() ещё не подтверждён")
+    }
     console.groupEnd()
   }, [hf, supplyWETH, supplyUSDC, warningHF, targetHF, paused, needsProtection, owner, rewardBps, vaultAddress, index])
 
