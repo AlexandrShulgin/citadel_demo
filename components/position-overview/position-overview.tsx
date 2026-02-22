@@ -38,6 +38,43 @@ function shortAddr(addr: string) {
 }
 
 // ──────────────────────────────────────────────────────────────
+// Компонент-логгер: читает все view-данные vault'а и выводит в консоль
+// ──────────────────────────────────────────────────────────────
+
+function VaultLogger({ vaultAddress, index }: { vaultAddress: `0x${string}`; index: number }) {
+  const { data: hf } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getHealthFactor" })
+  const { data: supplyWETH } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getSupplyBalance", args: [ADDRESSES.WETH] })
+  const { data: supplyUSDC } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getSupplyBalance", args: [ADDRESSES.USDC] })
+  const { data: warningHF } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "warningHF" })
+  const { data: targetHF } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "targetHF" })
+  const { data: paused } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "paused" })
+  const { data: needsProtection } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "needsProtection" })
+  const { data: owner } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "owner" })
+  const { data: rewardBps } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "rewardBps" })
+
+  useEffect(() => {
+    // Логируем только когда хотя бы HF загружен
+    if (hf === undefined) return
+
+    const hfNum = hf === maxUint256 ? Infinity : Number(formatUnits(hf as bigint, 18))
+
+    console.group(`[Citadel] Vault #${index + 1}: ${vaultAddress}`)
+    console.log("owner:           ", owner)
+    console.log("healthFactor:    ", hfNum === Infinity ? "∞ (no debt)" : hfNum.toFixed(4))
+    console.log("warningHF:       ", warningHF ? Number(formatUnits(warningHF as bigint, 18)).toFixed(2) : "—")
+    console.log("targetHF:        ", targetHF ? Number(formatUnits(targetHF as bigint, 18)).toFixed(2) : "—")
+    console.log("supplyWETH:      ", supplyWETH ? formatUnits(supplyWETH as bigint, 18) + " WETH" : "0")
+    console.log("supplyUSDC:      ", supplyUSDC ? formatUnits(supplyUSDC as bigint, 6) + " USDC" : "0")
+    console.log("needsProtection: ", needsProtection)
+    console.log("paused:          ", paused)
+    console.log("rewardBps:       ", rewardBps ? Number(rewardBps).toString() + " bps" : "—")
+    console.groupEnd()
+  }, [hf, supplyWETH, supplyUSDC, warningHF, targetHF, paused, needsProtection, owner, rewardBps, vaultAddress, index])
+
+  return null // визуально ничего не рендерит
+}
+
+// ──────────────────────────────────────────────────────────────
 // Карточка одного Vault
 // ──────────────────────────────────────────────────────────────
 
@@ -469,7 +506,10 @@ export function PositionOverview() {
           {mounted && (
             <div className={styles.positionsContainer}>
               {vaults.map((vaultAddress, index) => (
-                <VaultCard key={vaultAddress} vaultAddress={vaultAddress} index={index} />
+                <div key={vaultAddress}>
+                  <VaultLogger vaultAddress={vaultAddress} index={index} />
+                  <VaultCard vaultAddress={vaultAddress} index={index} />
+                </div>
               ))}
             </div>
           )}
