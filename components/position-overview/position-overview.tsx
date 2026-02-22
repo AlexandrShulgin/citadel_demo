@@ -22,6 +22,7 @@ import {
   VAULT_FACTORY_ABI,
   CITADEL_VAULT_ABI,
   ERC20_ABI,
+  AAVE_POOL_ABI,
 } from "@/lib/contracts"
 
 // ──────────────────────────────────────────────────────────────
@@ -46,6 +47,15 @@ function VaultLogger({ vaultAddress, index }: { vaultAddress: `0x${string}`; ind
   const { data: hf } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getHealthFactor" })
   const { data: supplyWETH, error: supplyWETHError } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getSupplyBalance", args: [ADDRESSES.aWETH] })
   const { data: supplyUSDC, error: supplyUSDCError } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getSupplyBalance", args: [ADDRESSES.aUSDC] })
+
+  // Прямой запрос к Aave Pool — показывает суммарный collateral и debt (в USD, 8 decimals)
+  const { data: aaveAccount } = useReadContract({
+    chainId: base.id,
+    address: ADDRESSES.AavePool,
+    abi: AAVE_POOL_ABI,
+    functionName: "getUserAccountData",
+    args: [vaultAddress],
+  })
   const { data: warningHF } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "warningHF" })
   const { data: targetHF } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "targetHF" })
   const { data: paused } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "paused" })
@@ -64,7 +74,18 @@ function VaultLogger({ vaultAddress, index }: { vaultAddress: `0x${string}`; ind
     console.log("healthFactor (raw): ", String(hf))
     console.log("warningHF:          ", warningHF ? Number(formatUnits(warningHF as bigint, 18)).toFixed(2) : "—")
     console.log("targetHF:           ", targetHF ? Number(formatUnits(targetHF as bigint, 18)).toFixed(2) : "—")
-    console.log("WETH addr:          ", ADDRESSES.WETH)
+    console.log("── Aave Pool (getUserAccountData) ───────────")
+    if (aaveAccount) {
+      const acc = aaveAccount as unknown as readonly [bigint, bigint, bigint, bigint, bigint, bigint]
+      // [totalCollateralBase, totalDebtBase, availableBorrowsBase, currentLiquidationThreshold, ltv, healthFactor]
+      console.log("totalCollateralBase (USD): ", Number(formatUnits(acc[0], 8)).toFixed(4))
+      console.log("totalDebtBase (USD):       ", Number(formatUnits(acc[1], 8)).toFixed(4))
+      console.log("availableBorrows (USD):    ", Number(formatUnits(acc[2], 8)).toFixed(4))
+      console.log("healthFactor (Aave):       ", acc[5] === maxUint256 ? "∞" : Number(formatUnits(acc[5], 18)).toFixed(4))
+    } else {
+      console.log("aaveAccount:               loading...")
+    }
+    console.log("── Vault getSupplyBalance ──────────────────")
     console.log("supplyWETH (raw):   ", String(supplyWETH ?? "undefined"))
     console.log("supplyWETH:         ", supplyWETH ? formatUnits(supplyWETH as bigint, 18) + " WETH" : "❌ 0 / undefined")
     if (supplyWETHError) console.error("supplyWETH error:   ", supplyWETHError.message)
