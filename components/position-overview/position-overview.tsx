@@ -43,15 +43,15 @@ function shortAddr(addr: string) {
 // ──────────────────────────────────────────────────────────────
 
 function VaultLogger({ vaultAddress, index }: { vaultAddress: `0x${string}`; index: number }) {
-  const { data: hf } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getHealthFactor" })
-  const { data: supplyWETH } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getSupplyBalance", args: [ADDRESSES.WETH] })
-  const { data: supplyUSDC } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getSupplyBalance", args: [ADDRESSES.USDC] })
-  const { data: warningHF } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "warningHF" })
-  const { data: targetHF } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "targetHF" })
-  const { data: paused } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "paused" })
-  const { data: needsProtection } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "needsProtection" })
-  const { data: owner } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "owner" })
-  const { data: rewardBps } = useReadContract({ address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "rewardBps" })
+  const { data: hf } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getHealthFactor" })
+  const { data: supplyWETH } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getSupplyBalance", args: [ADDRESSES.WETH] })
+  const { data: supplyUSDC } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getSupplyBalance", args: [ADDRESSES.USDC] })
+  const { data: warningHF } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "warningHF" })
+  const { data: targetHF } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "targetHF" })
+  const { data: paused } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "paused" })
+  const { data: needsProtection } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "needsProtection" })
+  const { data: owner } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "owner" })
+  const { data: rewardBps } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "rewardBps" })
 
   useEffect(() => {
     // Логируем только когда хотя бы HF загружен
@@ -94,12 +94,14 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
 
   // Чтение данных vault
   const { data: healthFactorRaw, refetch: refetchHF } = useReadContract({
+    chainId: base.id,
     address: vaultAddress,
     abi: CITADEL_VAULT_ABI,
     functionName: "getHealthFactor",
   })
 
   const { data: supplyBalanceRaw, refetch: refetchSupply } = useReadContract({
+    chainId: base.id,
     address: vaultAddress,
     abi: CITADEL_VAULT_ABI,
     functionName: "getSupplyBalance",
@@ -107,24 +109,28 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
   })
 
   const { data: warningHFRaw } = useReadContract({
+    chainId: base.id,
     address: vaultAddress,
     abi: CITADEL_VAULT_ABI,
     functionName: "warningHF",
   })
 
   const { data: targetHFRaw } = useReadContract({
+    chainId: base.id,
     address: vaultAddress,
     abi: CITADEL_VAULT_ABI,
     functionName: "targetHF",
   })
 
   const { data: isPaused } = useReadContract({
+    chainId: base.id,
     address: vaultAddress,
     abi: CITADEL_VAULT_ABI,
     functionName: "paused",
   })
 
   const { data: needsProtectionRaw } = useReadContract({
+    chainId: base.id,
     address: vaultAddress,
     abi: CITADEL_VAULT_ABI,
     functionName: "needsProtection",
@@ -393,6 +399,7 @@ function CreateVaultButton() {
 
   function handleCreate() {
     writeContract({
+      chainId: base.id,
       address: ADDRESSES.VaultFactory,
       abi: VAULT_FACTORY_ABI,
       functionName: "createVault",
@@ -444,6 +451,7 @@ export function PositionOverview() {
     data: vaultAddresses,
     isLoading: isLoadingVaults,
   } = useReadContract({
+    chainId: base.id,
     address: ADDRESSES.VaultFactory,
     abi: VAULT_FACTORY_ABI,
     functionName: "getVaultsByOwner",

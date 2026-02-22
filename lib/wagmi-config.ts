@@ -14,6 +14,6 @@ export const wagmiConfig = createConfig({
     walletConnect({ projectId: WC_PROJECT_ID }),
   ],
   transports: {
-    [base.id]: http("https://mainnet.base.org"),
+    [base.id]: http("https://base-mainnet.g.alchemy.com/v2/iDUYwwzWmOhPxY9GJEVtE"),
   },
 })
