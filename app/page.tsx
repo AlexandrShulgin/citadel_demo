@@ -1,37 +1,43 @@
 "use client"
 
 import { Shield, Zap } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card/card"
 import { Button } from "@/components/ui/button/button"
 import { PositionOverview } from "@/components/position-overview/position-overview"
 import { useAccount, useConnect, useDisconnect } from "wagmi"
+import { useEffect, useState } from "react"
 import styles from "./page.module.css"
 
-// ──────────────────────────────────────────────────────────────
-// Кнопка подключения / отключения кошелька
-// ──────────────────────────────────────────────────────────────
+// Предотвращаем hydration mismatch —
+// wagmi восстанавливает состояние кошелька только на клиенте
+function useMounted() {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  return mounted
+}
 
 function WalletButton() {
+  const mounted = useMounted()
   const { address, isConnected } = useAccount()
   const { connect, connectors, isPending } = useConnect()
   const { disconnect } = useDisconnect()
 
+  // Пока не смонтировано — показываем заглушку без состояния кошелька
+  if (!mounted) {
+    return (
+      <Button className={styles.settingsButton} disabled>
+        CONNECT WALLET
+      </Button>
+    )
+  }
+
   if (isConnected && address) {
     return (
-      <Button
-        className={styles.settingsButton}
-        variant="outline"
-        onClick={() => disconnect()}
-      >
-        <img src="/base.png" alt="Base" className={styles.arbitrumIcon}
-          onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
-        />
+      <Button className={styles.settingsButton} variant="outline" onClick={() => disconnect()}>
         {address.slice(0, 6)}…{address.slice(-4)}
       </Button>
     )
   }
 
-  // Предпочитаем injected (MetaMask) или первый доступный коннектор
   const connector =
     connectors.find((c) => c.id === "injected") ??
     connectors.find((c) => c.id === "metaMask") ??
@@ -43,19 +49,13 @@ function WalletButton() {
       onClick={() => connector && connect({ connector })}
       disabled={isPending || !connector}
     >
-      <img src="/base.png" alt="Base" className={styles.arbitrumIcon}
-        onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }}
-      />
       {isPending ? "Подключение…" : "CONNECT WALLET"}
     </Button>
   )
 }
 
-// ──────────────────────────────────────────────────────────────
-// Страница
-// ──────────────────────────────────────────────────────────────
-
 export default function Home() {
+  const mounted = useMounted()
   const { isConnected } = useAccount()
 
   return (
@@ -81,8 +81,8 @@ export default function Home() {
       </header>
 
       <main className={`${styles.container} ${styles.main}`}>
-        {/* Alert Banner */}
-        {isConnected && (
+        {/* Alert Banner — только после mount и при подключённом кошельке */}
+        {mounted && isConnected && (
           <div className={styles.alertBanner}>
             <div className={styles.alertContent}>
               <Zap className={styles.alertIcon} />
@@ -99,7 +99,6 @@ export default function Home() {
 
         {/* Main Grid */}
         <div className={styles.mainGrid}>
-          {/* Position Overview */}
           <div className={styles.overviewContainer}>
             <PositionOverview />
           </div>

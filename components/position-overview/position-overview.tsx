@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   useAccount,
   useReadContract,
@@ -397,6 +397,9 @@ function CreateVaultButton() {
 // ──────────────────────────────────────────────────────────────
 
 export function PositionOverview() {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
   const { address, isConnected } = useAccount()
 
   const {
@@ -407,10 +410,17 @@ export function PositionOverview() {
     abi: VAULT_FACTORY_ABI,
     functionName: "getVaultsByOwner",
     args: [address!],
-    query: { enabled: isConnected && !!address },
+    query: { enabled: mounted && isConnected && !!address },
   })
 
   const vaults = (vaultAddresses as `0x${string}`[] | undefined) ?? []
+
+  // Выводим vault'ы в консоль для отладки
+  useEffect(() => {
+    if (address) {
+      console.log(`[Citadel] getVaultsByOwner(${address}):`, vaults)
+    }
+  }, [vaults, address])
 
   return (
     <>
@@ -418,31 +428,37 @@ export function PositionOverview() {
         <CardHeader>
           <CardTitle className={styles.title}>Position Overview</CardTitle>
           <CardDescription>
-            {isConnected
+            {mounted && isConnected
               ? `Ваши vault'ы на Base mainnet · ${shortAddr(address!)}`
               : "Подключите кошелёк для просмотра позиций"}
           </CardDescription>
         </CardHeader>
 
         <CardContent>
-          {/* Не подключён */}
-          {!isConnected && (
+          {/* До монтирования — нейтральный placeholder */}
+          {!mounted && (
+            <div style={{ textAlign: "center", padding: "32px 0", color: "hsl(var(--muted-foreground))" }}>
+              <Shield size={40} style={{ margin: "0 auto 12px", opacity: 0.4 }} />
+              <p>Подключите кошелёк для просмотра позиций</p>
+            </div>
+          )}
+
+          {/* После монтирования — реальный UI */}
+          {mounted && !isConnected && (
             <div style={{ textAlign: "center", padding: "32px 0", color: "hsl(var(--muted-foreground))" }}>
               <Shield size={40} style={{ margin: "0 auto 12px", opacity: 0.4 }} />
               <p>Подключите кошелёк, чтобы увидеть ваши vault'ы</p>
             </div>
           )}
 
-          {/* Загрузка */}
-          {isConnected && isLoadingVaults && (
+          {mounted && isConnected && isLoadingVaults && (
             <div style={{ textAlign: "center", padding: "32px 0" }}>
               <Loader2 size={32} className="animate-spin" style={{ margin: "0 auto 12px" }} />
               <p className={styles.metricLabel}>Загружаем vault'ы…</p>
             </div>
           )}
 
-          {/* Нет vault'ов */}
-          {isConnected && !isLoadingVaults && vaults.length === 0 && (
+          {mounted && isConnected && !isLoadingVaults && vaults.length === 0 && (
             <div style={{ textAlign: "center", padding: "24px 0", color: "hsl(var(--muted-foreground))" }}>
               <AlertTriangle size={32} style={{ margin: "0 auto 12px", opacity: 0.5 }} />
               <p>У вас пока нет vault'ов</p>
@@ -450,14 +466,16 @@ export function PositionOverview() {
           )}
 
           {/* Список vault'ов */}
-          <div className={styles.positionsContainer}>
-            {vaults.map((vaultAddress, index) => (
-              <VaultCard key={vaultAddress} vaultAddress={vaultAddress} index={index} />
-            ))}
-          </div>
+          {mounted && (
+            <div className={styles.positionsContainer}>
+              {vaults.map((vaultAddress, index) => (
+                <VaultCard key={vaultAddress} vaultAddress={vaultAddress} index={index} />
+              ))}
+            </div>
+          )}
 
           {/* Создать vault */}
-          {isConnected && <CreateVaultButton />}
+          {mounted && isConnected && <CreateVaultButton />}
         </CardContent>
       </Card>
     </>
