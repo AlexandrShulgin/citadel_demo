@@ -373,3 +373,14 @@ export const AAVE_POOL_DATA_PROVIDER_ABI = [
     ],
   },
 ] as const
+
+// ABI Aave Oracle — getAssetPrice возвращает цену в USD с 8 знаками после запятой
+export const AAVE_ORACLE_ABI = [
+  {
+    name: "getAssetPrice",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "asset", type: "address" }],
+    outputs: [{ name: "price", type: "uint256" }],
+  },
+] as const

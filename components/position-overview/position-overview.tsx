@@ -7,6 +7,7 @@ import {
   useWriteContract,
   useWaitForTransactionReceipt,
 } from "wagmi"
+import { useQueryClient } from "@tanstack/react-query"
 import { parseUnits, formatUnits, encodeAbiParameters, parseAbiParameters, maxUint256 } from "viem"
 import { base } from "wagmi/chains"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card/card"
@@ -23,6 +24,7 @@ import {
   CITADEL_VAULT_ABI,
   ERC20_ABI,
   AAVE_POOL_ABI,
+  AAVE_ORACLE_ABI,
 } from "@/lib/contracts"
 
 // ──────────────────────────────────────────────────────────────
@@ -46,17 +48,25 @@ function shortAddr(addr: string) {
 function VaultLogger({ vaultAddress, index }: { vaultAddress: `0x${string}`; index: number }) {
   const { data: hf } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getHealthFactor" })
 
+  // Цены из Aave Oracle (8 decimals)
+  const { data: ethPrice, error: ethPriceError } = useReadContract({
+    chainId: base.id, address: ADDRESSES.AaveOracle, abi: AAVE_ORACLE_ABI, functionName: "getAssetPrice", args: [ADDRESSES.WETH]
+  })
+  const { data: usdcPrice, error: usdcPriceError } = useReadContract({
+    chainId: base.id, address: ADDRESSES.AaveOracle, abi: AAVE_ORACLE_ABI, functionName: "getAssetPrice", args: [ADDRESSES.USDC]
+  })
+
   // Читаем балансы (collateral и debt) напрямую через balanceOf на токенах
-  const { data: aWETHBalance, error: aWETHError, isLoading: aWETHLand } = useReadContract({
+  const { data: aWETHBalance } = useReadContract({
     chainId: base.id, address: ADDRESSES.aWETH, abi: ERC20_ABI, functionName: "balanceOf", args: [vaultAddress]
   })
-  const { data: vWETHBalance, error: vWETHError } = useReadContract({
+  const { data: vWETHBalance } = useReadContract({
     chainId: base.id, address: ADDRESSES.vWETH, abi: ERC20_ABI, functionName: "balanceOf", args: [vaultAddress]
   })
-  const { data: aUSDCBalance, error: aUSDCError } = useReadContract({
+  const { data: aUSDCBalance } = useReadContract({
     chainId: base.id, address: ADDRESSES.aUSDC, abi: ERC20_ABI, functionName: "balanceOf", args: [vaultAddress]
   })
-  const { data: vUSDCBalance, error: vUSDCError } = useReadContract({
+  const { data: vUSDCBalance } = useReadContract({
     chainId: base.id, address: ADDRESSES.vUSDC, abi: ERC20_ABI, functionName: "balanceOf", args: [vaultAddress]
   })
 
@@ -78,40 +88,70 @@ function VaultLogger({ vaultAddress, index }: { vaultAddress: `0x${string}`; ind
   useEffect(() => {
     if (hf === undefined) return
 
+    if (ethPriceError) console.error("[Citadel] ethPriceError:", ethPriceError)
+    if (usdcPriceError) console.error("[Citadel] usdcPriceError:", usdcPriceError)
+    console.log("[Citadel] Raw Oracle ETH Price:", String(ethPrice))
+    console.log("[Citadel] Raw Oracle USDC Price:", String(usdcPrice))
+
     const hfNum = hf === maxUint256 ? Infinity : Number(formatUnits(hf as bigint, 18))
+    const ethPriceNum = ethPrice ? Number(formatUnits(ethPrice as bigint, 8)) : 0
+    const usdcPriceNum = usdcPrice ? Number(formatUnits(usdcPrice as bigint, 8)) : 0
+
+    const ethCollateral = aWETHBalance ? Number(formatUnits(aWETHBalance as bigint, 18)) : 0
+    const ethDebt = vWETHBalance ? Number(formatUnits(vWETHBalance as bigint, 18)) : 0
+    const usdcCollateral = aUSDCBalance ? Number(formatUnits(aUSDCBalance as bigint, 6)) : 0
+    const usdcDebt = vUSDCBalance ? Number(formatUnits(vUSDCBalance as bigint, 6)) : 0
+
+    const ethCollateralUSD = ethCollateral * ethPriceNum
+    const ethDebtUSD = ethDebt * ethPriceNum
+    const usdcCollateralUSD = usdcCollateral * usdcPriceNum
+    const usdcDebtUSD = usdcDebt * usdcPriceNum
 
     console.group(`[Citadel] Vault #${index + 1}: ${vaultAddress}`)
-    console.log("owner:              ", owner)
-    console.log("healthFactor:       ", hfNum === Infinity ? "∞ (no debt)" : hfNum.toFixed(6))
-    console.log("healthFactor (raw): ", String(hf))
-    console.log("warningHF:          ", warningHF ? Number(formatUnits(warningHF as bigint, 18)).toFixed(2) : "—")
-    console.log("targetHF:           ", targetHF ? Number(formatUnits(targetHF as bigint, 18)).toFixed(2) : "—")
-    console.log("── Aave Pool (getUserAccountData) ───────────")
+    console.log("Owner:              ", owner)
+    console.log("Status:             ", paused ? "PAUSED" : (needsProtection ? "⚠ NEEDS PROTECTION" : "ACTIVE"))
+    console.log("Health Factor:      ", hfNum === Infinity ? "∞ (no debt)" : hfNum.toFixed(6))
+    console.log("Warning HF:         ", warningHF ? Number(formatUnits(warningHF as bigint, 18)).toFixed(2) : "—")
+    console.log("Target HF:          ", targetHF ? Number(formatUnits(targetHF as bigint, 18)).toFixed(2) : "—")
+
+    console.log("── Aave Account Summary (USD) ───────────────")
     if (aaveAccount) {
       const acc = aaveAccount as unknown as readonly [bigint, bigint, bigint, bigint, bigint, bigint]
-      // [totalCollateralBase, totalDebtBase, availableBorrowsBase, currentLiquidationThreshold, ltv, healthFactor]
-      console.log("totalCollateralBase (USD): ", Number(formatUnits(acc[0], 8)).toFixed(4))
-      console.log("totalDebtBase (USD):       ", Number(formatUnits(acc[1], 8)).toFixed(4))
-      console.log("availableBorrows (USD):    ", Number(formatUnits(acc[2], 8)).toFixed(4))
-      console.log("healthFactor (Aave):       ", acc[5] === maxUint256 ? "∞" : Number(formatUnits(acc[5], 18)).toFixed(4))
-    } else {
-      console.log("aaveAccount:               loading...")
+      console.log("Total Collateral:   ", Number(formatUnits(acc[0], 8)).toFixed(2), "USD")
+      console.log("Total Debt:         ", Number(formatUnits(acc[1], 8)).toFixed(2), "USD")
+      console.log("Available Borrows:  ", Number(formatUnits(acc[2], 8)).toFixed(2), "USD")
+      console.log("Liquidation Threshold:", Number(acc[3]) / 100, "%")
+      console.log("LTV:                ", Number(acc[4]) / 100, "%")
+      console.log("Health Factor (Aave):", acc[5] === maxUint256 ? "∞" : Number(formatUnits(acc[5], 18)).toFixed(4))
     }
-    console.log("── aToken Balances (balanceOf) ──────────────")
-    console.log("aWETH (Collateral): ", aWETHBalance ? formatUnits(aWETHBalance as bigint, 18) + " WETH" : "0")
-    if (aWETHError) console.error("aWETH Error:      ", aWETHError.message)
-    console.log("vWETH (Debt):       ", vWETHBalance ? formatUnits(vWETHBalance as bigint, 18) + " WETH" : "0")
 
-    console.log("aUSDC (Collateral): ", aUSDCBalance ? formatUnits(aUSDCBalance as bigint, 6) + " USDC" : "0")
-    if (aUSDCError) console.error("aUSDC Error:      ", aUSDCError.message)
-    console.log("vUSDC (Debt):       ", vUSDCBalance ? formatUnits(vUSDCBalance as bigint, 6) + " USDC" : "0")
-    console.log("needsProtection:    ", needsProtection)
-    console.log("paused:             ", paused)
-    console.log("rewardBps:          ", rewardBps ? Number(rewardBps).toString() + " bps" : "—")
+    console.log("── Collateral Breakdown ──────────────────────")
+    if (ethCollateral > 0) {
+      console.log(`WETH:  ${ethCollateral.toFixed(6)} WETH (~${ethCollateralUSD.toFixed(2)} USD)`)
+    }
+    if (usdcCollateral > 0) {
+      console.log(`USDC:  ${usdcCollateral.toFixed(2)} USDC (~${usdcCollateralUSD.toFixed(2)} USD)`)
+    }
+    console.log("Total Collateral USD (sum):", (ethCollateralUSD + usdcCollateralUSD).toFixed(2))
+
+    console.log("── Debt Breakdown ────────────────────────────")
+    if (ethDebt > 0) {
+      console.log(`WETH:  ${ethDebt.toFixed(6)} WETH (~${ethDebtUSD.toFixed(2)} USD)`)
+    }
+    if (usdcDebt > 0) {
+      console.log(`USDC:  ${usdcDebt.toFixed(2)} USDC (~${usdcDebtUSD.toFixed(2)} USD)`)
+    }
+    console.log("Total Debt USD (sum):      ", (ethDebtUSD + usdcDebtUSD).toFixed(2))
+
+    console.log("── Prices ────────────────────────────────────")
+    console.log("ETH Price:          ", ethPriceNum.toFixed(2), "USD")
+    console.log("USDC Price:         ", usdcPriceNum.toFixed(4), "USD")
+
+    console.log("Reward BPS:         ", rewardBps ? Number(rewardBps).toString() + " bps" : "—")
     console.groupEnd()
-  }, [hf, aWETHBalance, vWETHBalance, aUSDCBalance, vUSDCBalance, aaveAccount, warningHF, targetHF, paused, needsProtection, owner, rewardBps, vaultAddress, index])
+  }, [hf, ethPrice, usdcPrice, aWETHBalance, vWETHBalance, aUSDCBalance, vUSDCBalance, aaveAccount, warningHF, targetHF, paused, needsProtection, owner, rewardBps, vaultAddress, index])
 
-  return null // визуально ничего не рендерит
+  return null
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -126,10 +166,25 @@ interface VaultCardProps {
 function VaultCard({ vaultAddress, index }: VaultCardProps) {
   const [modalType, setModalType] = useState<"supply" | "borrow" | null>(null)
   const [inputAmount, setInputAmount] = useState("")
-  const [sliderHF, setSliderHF] = useState(1.5)
+  const [warningSliderHF, setWarningSliderHF] = useState(1.2)
+  const [targetSliderHF, setTargetSliderHF] = useState(1.5)
 
   const { writeContract, data: txHash, isPending: isTxPending, reset: resetTx } = useWriteContract()
   const { isLoading: isTxConfirming, isSuccess: isTxSuccess } = useWaitForTransactionReceipt({ hash: txHash })
+
+  // Состояние для выпадающего меню действий
+  const [activeAction, setActiveAction] = useState<"deposit" | "withdraw" | "borrow" | "repay" | null>(null)
+
+  // Цены из Aave Oracle (8 decimals)
+  const { data: ethPrice } = useReadContract({
+    chainId: base.id, address: ADDRESSES.AaveOracle, abi: AAVE_ORACLE_ABI, functionName: "getAssetPrice", args: [ADDRESSES.WETH]
+  })
+  const { data: usdcPrice } = useReadContract({
+    chainId: base.id, address: ADDRESSES.AaveOracle, abi: AAVE_ORACLE_ABI, functionName: "getAssetPrice", args: [ADDRESSES.USDC]
+  })
+
+  const ethPriceNum = ethPrice ? Number(formatUnits(ethPrice as bigint, 8)) : 0
+  const usdcPriceNum = usdcPrice ? Number(formatUnits(usdcPrice as bigint, 8)) : 0
 
   // Чтение данных vault
   const { data: healthFactorRaw, refetch: refetchHF } = useReadContract({
@@ -211,6 +266,13 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
 
   const warningHF = hfToNumber(warningHFRaw as bigint | undefined) || 1.2
   const targetHF = hfToNumber(targetHFRaw as bigint | undefined) || 1.5
+
+  // Синхронизируем слайдеры с данными из контракта при загрузке
+  useEffect(() => {
+    if (warningHFRaw) setWarningSliderHF(hfToNumber(warningHFRaw as bigint))
+    if (targetHFRaw) setTargetSliderHF(hfToNumber(targetHFRaw as bigint))
+  }, [warningHFRaw, targetHFRaw])
+
   const isHealthy = healthFactor === 999 || healthFactor >= 1.5
   const isBusy = isTxPending || isTxConfirming
 
@@ -230,43 +292,49 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
 
   // Транзакции
   function handleApproveWETH() {
+    console.log("[Citadel] handleApproveWETH", { inputAmount, vaultAddress })
     if (!inputAmount) return
     const amount = parseUnits(inputAmount, 18)
     writeContract({ chainId: base.id, address: ADDRESSES.WETH, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, amount] })
   }
 
   function handleDeposit() {
+    console.log("[Citadel] handleDeposit", { inputAmount, vaultAddress })
     if (!inputAmount) return
     const amount = parseUnits(inputAmount, 18)
     writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "deposit", args: [ADDRESSES.WETH, amount] })
   }
 
   function handleWithdraw() {
+    console.log("[Citadel] handleWithdraw", { inputAmount, vaultAddress })
     if (!inputAmount) return
     const amount = parseUnits(inputAmount, 18)
     writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "withdraw", args: [ADDRESSES.WETH, amount] })
   }
 
   function handleBorrow() {
+    console.log("[Citadel] handleBorrow", { inputAmount, vaultAddress })
     if (!inputAmount) return
     const amount = parseUnits(inputAmount, 6)
     writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "borrow", args: [ADDRESSES.USDC, amount] })
   }
 
   function handleApproveUSDC() {
+    console.log("[Citadel] handleApproveUSDC", { inputAmount, vaultAddress })
     if (!inputAmount) return
     const amount = parseUnits(inputAmount, 6)
     writeContract({ chainId: base.id, address: ADDRESSES.USDC, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, amount] })
   }
 
   function handleRepay() {
+    console.log("[Citadel] handleRepay", { inputAmount, vaultAddress })
     if (!inputAmount) return
     const amount = parseUnits(inputAmount, 6)
     writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "repay", args: [ADDRESSES.USDC, amount] })
   }
 
   function handleAutoLoop() {
-    const minHFAfter = BigInt(Math.round(sliderHF * 1e18))
+    const minHFAfter = BigInt(Math.round(targetSliderHF * 1e18))
     const data = encodeAbiParameters(
       parseAbiParameters("uint8, address, uint8, uint256, uint256"),
       [0, ADDRESSES.USDC, 3, BigInt(100), minHFAfter]
@@ -275,8 +343,13 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
   }
 
   function handleSetWarningHF() {
-    const warnRaw = BigInt(Math.round(sliderHF * 1e18))
+    const warnRaw = BigInt(Math.round(warningSliderHF * 1e18))
     writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "setWarningHF", args: [warnRaw] })
+  }
+
+  function handleSetTargetHF() {
+    const targetRaw = BigInt(Math.round(targetSliderHF * 1e18))
+    writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "setTargetHF", args: [targetRaw] })
   }
 
   return (
@@ -285,7 +358,7 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
       <div className={styles.positionHeader}>
         <div className={styles.assetInfo}>
           <div className={styles.assetTitleWrapper}>
-            <h3 className={styles.assetName}>WETH / USDC</h3>
+            <h3 className={styles.assetName}>Vault #{index + 1}</h3>
             {isPaused && (
               <Badge variant="outline" className={styles.protectedBadge} style={{ color: "orange" }}>
                 Paused
@@ -301,36 +374,151 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
         </div>
 
         <div className={styles.headerActions}>
-          <Button size="sm" variant="outline" className={styles.headerButton}
-            onClick={() => { }} disabled={!!isPaused}>
-            Deposit
-          </Button>
-          <Button size="sm" variant="outline" className={styles.headerButton}
-            onClick={() => { }} disabled={!!isPaused}>
-            Withdraw
-          </Button>
-          <Button size="sm" variant="outline" className={styles.headerButton}
-            onClick={() => { }} disabled={!!isPaused}>
-            Borrow
-          </Button>
-          <Button size="sm" variant="outline" className={styles.headerButton}
-            onClick={() => { }} disabled={!!isPaused}>
-            Repay
-          </Button>
+          <div className={styles.actionWrapper}>
+            <Button size="sm" variant="outline"
+              className={`${styles.headerButton} ${activeAction === 'deposit' ? styles.activeButton : ''}`}
+              onClick={() => setActiveAction(activeAction === 'deposit' ? null : 'deposit')}
+              disabled={!!isPaused}
+            >
+              Deposit
+            </Button>
+            {activeAction === 'deposit' && (
+              <div className={styles.actionDropdown} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.dropdownInputRow}>
+                  <input
+                    type="number"
+                    placeholder="WETH Amount"
+                    value={inputAmount}
+                    onChange={(e) => setInputAmount(e.target.value)}
+                    className={styles.dropdownInput}
+                  />
+                  <div className={styles.amountInfo}>
+                    <p className={styles.nativeAmount}>{inputAmount || "0"} WETH</p>
+                    <p className={styles.usdAmount}>≈ ${(Number(inputAmount || 0) * ethPriceNum).toFixed(2)} USD</p>
+                  </div>
+                </div>
+                <div className={styles.dropdownButtons}>
+                  <Button size="sm" variant="outline" onClick={handleApproveWETH} disabled={isBusy} className={styles.dropdownActionButton}>
+                    {isBusy && activeAction === 'deposit' ? <Loader2 size={14} className="animate-spin" /> : "APPROVE"}
+                  </Button>
+                  <Button size="sm" onClick={handleDeposit} disabled={isBusy} className={styles.dropdownActionButton}>
+                    {isBusy && activeAction === 'deposit' ? <Loader2 size={14} className="animate-spin" /> : "DEPOSIT"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className={styles.actionWrapper}>
+            <Button size="sm" variant="outline"
+              className={`${styles.headerButton} ${activeAction === 'withdraw' ? styles.activeButton : ''}`}
+              onClick={() => setActiveAction(activeAction === 'withdraw' ? null : 'withdraw')}
+              disabled={!!isPaused}
+            >
+              Withdraw
+            </Button>
+            {activeAction === 'withdraw' && (
+              <div className={styles.actionDropdown} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.dropdownInputRow}>
+                  <input
+                    type="number"
+                    placeholder="WETH Amount"
+                    value={inputAmount}
+                    onChange={(e) => setInputAmount(e.target.value)}
+                    className={styles.dropdownInput}
+                  />
+                  <div className={styles.amountInfo}>
+                    <p className={styles.nativeAmount}>{inputAmount || "0"} WETH</p>
+                    <p className={styles.usdAmount}>≈ ${(Number(inputAmount || 0) * ethPriceNum).toFixed(2)} USD</p>
+                  </div>
+                </div>
+                <div className={styles.dropdownButtons}>
+                  <Button size="sm" onClick={handleWithdraw} disabled={isBusy} className={styles.dropdownActionButton}>
+                    {isBusy && activeAction === 'withdraw' ? <Loader2 size={14} className="animate-spin" /> : "WITHDRAW"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className={styles.actionWrapper}>
+            <Button size="sm" variant="outline"
+              className={`${styles.headerButton} ${activeAction === 'borrow' ? styles.activeButton : ''}`}
+              onClick={() => setActiveAction(activeAction === 'borrow' ? null : 'borrow')}
+              disabled={!!isPaused}
+            >
+              Borrow
+            </Button>
+            {activeAction === 'borrow' && (
+              <div className={styles.actionDropdown} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.dropdownInputRow}>
+                  <input
+                    type="number"
+                    placeholder="USDC Amount"
+                    value={inputAmount}
+                    onChange={(e) => setInputAmount(e.target.value)}
+                    className={styles.dropdownInput}
+                  />
+                  <div className={styles.amountInfo}>
+                    <p className={styles.nativeAmount}>{inputAmount || "0"} USDC</p>
+                    <p className={styles.usdAmount}>≈ ${(Number(inputAmount || 0) * usdcPriceNum).toFixed(2)} USD</p>
+                  </div>
+                </div>
+                <div className={styles.dropdownButtons}>
+                  <Button size="sm" onClick={handleBorrow} disabled={isBusy} className={styles.dropdownActionButton}>
+                    {isBusy && activeAction === 'borrow' ? <Loader2 size={14} className="animate-spin" /> : "BORROW"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className={styles.actionWrapper}>
+            <Button size="sm" variant="outline"
+              className={`${styles.headerButton} ${activeAction === 'repay' ? styles.activeButton : ''}`}
+              onClick={() => setActiveAction(activeAction === 'repay' ? null : 'repay')}
+              disabled={!!isPaused}
+            >
+              Repay
+            </Button>
+            {activeAction === 'repay' && (
+              <div className={styles.actionDropdown} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.dropdownInputRow}>
+                  <input
+                    type="number"
+                    placeholder="USDC Amount"
+                    value={inputAmount}
+                    onChange={(e) => setInputAmount(e.target.value)}
+                    className={styles.dropdownInput}
+                  />
+                  <div className={styles.amountInfo}>
+                    <p className={styles.nativeAmount}>{inputAmount || "0"} USDC</p>
+                    <p className={styles.usdAmount}>≈ ${(Number(inputAmount || 0) * usdcPriceNum).toFixed(2)} USD</p>
+                  </div>
+                </div>
+                <div className={styles.dropdownButtons}>
+                  <Button size="sm" variant="outline" onClick={handleApproveUSDC} disabled={isBusy} className={styles.dropdownActionButton}>
+                    {isBusy && activeAction === 'repay' ? <Loader2 size={14} className="animate-spin" /> : "APPROVE"}
+                  </Button>
+                  <Button size="sm" onClick={handleRepay} disabled={isBusy} className={styles.dropdownActionButton}>
+                    {isBusy && activeAction === 'repay' ? <Loader2 size={14} className="animate-spin" /> : "REPAY"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Метрики */}
       <div className={styles.metricsGrid}>
         <div>
-          <p className={styles.metricLabel}>Collateral (WETH)</p>
-          <p className={styles.metricValue}>{supplyBalanceWETH > 0 ? supplyBalanceWETH.toFixed(4) : "—"} WETH</p>
-          <p className={styles.collateralUSD}>{totalCollateralUSD.toFixed(2)} USD</p>
+          <p className={styles.metricLabel}>Collateral</p>
+          <p className={styles.metricValue}>1 usd</p>
         </div>
         <div>
-          <p className={styles.metricLabel}>Debt (USDC)</p>
-          <p className={styles.metricValue}>{debtBalanceUSDC > 0 ? debtBalanceUSDC.toFixed(2) : "—"} USDC</p>
-          <p className={styles.collateralUSD}>{totalDebtUSD.toFixed(2)} USD</p>
+          <p className={styles.metricLabel}>Debt</p>
+          <p className={styles.metricValue}>1 usd</p>
         </div>
         <div>
           <p className={styles.metricLabel}>Health Factor</p>
@@ -376,11 +564,11 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
           <div className={styles.sliderWrapper}>
             <div className={styles.sliderRow}>
               <span className={styles.metricLabel}>Warning Health Factor</span>
-              <span className={styles.hfValue}>{sliderHF.toFixed(1)}</span>
+              <span className={styles.hfValue}>{warningSliderHF.toFixed(1)}</span>
             </div>
             <Slider
-              value={[sliderHF]}
-              onValueChange={(v) => setSliderHF(v[0])}
+              value={[warningSliderHF]}
+              onValueChange={(v) => setWarningSliderHF(v[0])}
               min={1.1} max={2.5} step={0.1}
               className={styles.slider}
             />
@@ -399,11 +587,11 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
           <div className={styles.sliderWrapper}>
             <div className={styles.sliderRow}>
               <span className={styles.metricLabel}>Target Health Factor</span>
-              <span className={styles.hfValue}>{sliderHF.toFixed(1)}</span>
+              <span className={styles.hfValue}>{targetSliderHF.toFixed(1)}</span>
             </div>
             <Slider
-              value={[sliderHF]}
-              onValueChange={(v) => setSliderHF(v[0])}
+              value={[targetSliderHF]}
+              onValueChange={(v) => setTargetSliderHF(v[0])}
               min={1.1} max={2.5} step={0.1}
               className={styles.slider}
             />
@@ -414,7 +602,7 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
           </div>
           <Button size="sm" variant="default"
             className={`${styles.actionButton} ${styles.protectionButton}`}
-            onClick={handleSetWarningHF} disabled={isBusy}>
+            onClick={handleSetTargetHF} disabled={isBusy}>
             {isBusy ? <Loader2 size={14} className="animate-spin" /> : "SET TARGET HF"}
           </Button>
         </div>
@@ -573,6 +761,7 @@ export function PositionOverview() {
   useEffect(() => setMounted(true), [])
 
   const { address, isConnected } = useAccount()
+  const queryClient = useQueryClient()
 
   const {
     data: vaultAddresses,
@@ -599,16 +788,18 @@ export function PositionOverview() {
     <>
       <Card className={styles.card}>
         <CardHeader>
-          <CardTitle className={styles.title}>Position Overview</CardTitle>
+          <div className={styles.headerTitleRow}>
+            <CardTitle className={styles.title}>Position Overview</CardTitle>
+            <Button size="sm" variant="outline" className={styles.headerButton}
+              onClick={() => queryClient.invalidateQueries()} title="Обновить">
+              <RefreshCw size={14} />
+            </Button>
+          </div>
           <CardDescription>
             {mounted && isConnected
               ? `Ваши vault'ы на Base mainnet · ${shortAddr(address!)}`
               : "Подключите кошелёк для просмотра позиций"}
           </CardDescription>
-          <Button size="sm" variant="outline" className={styles.headerButton}
-            onClick={() => window.location.reload()} title="Обновить">
-            <RefreshCw size={14} />
-          </Button>
         </CardHeader>
 
         <CardContent>
