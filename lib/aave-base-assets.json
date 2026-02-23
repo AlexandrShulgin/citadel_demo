@@ -8,5 +8,44 @@
     "underlying": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     "aToken": "0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB",
     "vToken": "0x59dca05b6c26dbd64b5381374aAaC5CD05644C28"
+  },
+  "Syrup USDC": {
+    "underlying": "0x660975730059246A68521a3e2FBD4740173100f5",
+    "aToken": "0xD7424238CcbE7b7198Ab3cFE232e0271E22da7bd"
+  },
+  "Wrapped eETH": {
+    "underlying": "0x04C0599Ae5A44757c0af6F9eC3b93da8976c150A",
+    "aToken": "0x7C307e128efA31F540F2E2d976C995E0B65F51F6",
+    "vToken": "0x8D2e3F1f4b38AA9f1ceD22ac06019c7561B03901"
+  },
+  "Coinbase Wrapped BTC": {
+    "underlying": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "aToken": "0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB",
+    "vToken": "0x59dca05b6c26dbd64b5381374aAaC5CD05644C28"
+  },
+  "USDC": {
+    "underlying": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "aToken": "0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB",
+    "vToken": "0x59dca05b6c26dbd64b5381374aAaC5CD05644C28"
+  },
+  "USDC": {
+    "underlying": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "aToken": "0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB",
+    "vToken": "0x59dca05b6c26dbd64b5381374aAaC5CD05644C28"
+  },
+  "USDC": {
+    "underlying": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "aToken": "0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB",
+    "vToken": "0x59dca05b6c26dbd64b5381374aAaC5CD05644C28"
+  },
+  "USDC": {
+    "underlying": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "aToken": "0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB",
+    "vToken": "0x59dca05b6c26dbd64b5381374aAaC5CD05644C28"
+  },
+  "USDC": {
+    "underlying": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "aToken": "0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB",
+    "vToken": "0x59dca05b6c26dbd64b5381374aAaC5CD05644C28"
   }
 }

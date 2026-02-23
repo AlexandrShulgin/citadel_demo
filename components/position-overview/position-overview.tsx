@@ -262,6 +262,7 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
   const totalCollateralUSD = accData ? Number(formatUnits(accData[0], 8)) : 0
   const totalDebtUSD = accData ? Number(formatUnits(accData[1], 8)) : 0
   const availableBorrowUSD = accData ? Number(formatUnits(accData[2], 8)) : 0
+  const ltv = accData ? Number(accData[4]) / 100 : 0
   const rewardBps = rewardBpsRaw ? Number(rewardBpsRaw) : 0
 
   const warningHF = hfToNumber(warningHFRaw as bigint | undefined) || 1.2
@@ -551,6 +552,11 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
         <div>
           <p className={styles.metricLabel}>Reward BPS</p>
           <p className={styles.metricValue}>{rewardBps}</p>
+        </div>
+        <div>
+          <p className={styles.metricLabel}>LTV</p>
+          <p className={styles.metricValue}>{ltv.toFixed(2)}%</p>
+          <p className={styles.metricLabel}>Max</p>
         </div>
       </div>
 
