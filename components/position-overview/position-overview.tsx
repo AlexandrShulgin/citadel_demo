@@ -349,7 +349,7 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
       <div className={styles.positionHeader}>
         <div className={styles.assetInfo}>
           <div className={styles.assetTitleWrapper}>
-            <h3 className={styles.assetName}>Vault #{index + 1}</h3>
+            <h3 className={styles.assetName}>Vault {shortAddr(vaultAddress)}</h3>
             {isPaused && (
               <Badge variant="outline" className={styles.protectedBadge} style={{ color: "orange" }}>
                 Paused
@@ -361,7 +361,6 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
               </Badge>
             )}
           </div>
-          <p className={styles.assetDescription}>{shortAddr(vaultAddress)}</p>
         </div>
 
         <div className={styles.headerActions}>
@@ -892,7 +891,7 @@ function CreateVaultButton() {
           </div>
 
           {/* Create Button */}
-          <Button size="sm" onClick={handleCreate} disabled={isPending} style={{ width: '200px', background: 'hsl(var(--primary))', color: '#000', border: 'none', minWidth: '8.5rem', height: '2rem', fontWeight: 700 }}>
+          <Button size="sm" onClick={handleCreate} disabled={isPending} style={{ width: '200px', background: 'hsl(var(--primary))', color: '#fff', border: 'none', minWidth: '8.5rem', height: '1.75rem', fontWeight: 500, fontSize: '0.75rem', fontFamily: "'Berkeley Mono', monospace" }}>
             {isPending ? <Loader2 size={14} className="animate-spin" /> : "CREATE VAULT"}
           </Button>
 
@@ -965,6 +964,10 @@ export function PositionOverview() {
             <div style={{ textAlign: "center", padding: "32px 0", color: "hsl(var(--muted-foreground))" }}>
               <Shield size={40} style={{ margin: "0 auto 12px", opacity: 0.4 }} />
               <p>Connect wallet to view positions</p>
+              <div style={{ maxWidth: '500px', margin: '24px auto 0', fontSize: '0.875rem', lineHeight: '1.5', color: 'hsl(var(--muted-foreground))', opacity: 0.8 }}>
+                <p><strong>Citadel Protocol</strong> is your automated protection layer on Aave V3. Each vault acts as an isolated account.</p>
+                <p style={{ marginTop: '8px' }}>You can set custom <strong>Warning</strong> and <strong>Target Health Factors</strong>. When the market drops and your HF hits the Warning level, our smart contracts will automatically execute a flash loan to repay debt and rebalance your position back to the Target HF, preventing liquidations.</p>
+              </div>
             </div>
           )}
 
@@ -973,6 +976,10 @@ export function PositionOverview() {
             <div style={{ textAlign: "center", padding: "32px 0", color: "hsl(var(--muted-foreground))" }}>
               <Shield size={40} style={{ margin: "0 auto 12px", opacity: 0.4 }} />
               <p>Connect wallet to see your vaults</p>
+              <div style={{ maxWidth: '500px', margin: '24px auto 0', fontSize: '0.875rem', lineHeight: '1.5', color: 'hsl(var(--muted-foreground))', opacity: 0.8 }}>
+                <p><strong>Citadel Protocol</strong> is your automated protection layer on Aave V3. Each vault acts as an isolated account.</p>
+                <p style={{ marginTop: '8px' }}>You can set custom <strong>Warning</strong> and <strong>Target Health Factors</strong>. When the market drops and your HF hits the Warning level, our smart contracts will automatically execute a flash loan to repay debt and rebalance your position back to the Target HF, preventing liquidations.</p>
+              </div>
             </div>
           )}
 
@@ -983,15 +990,19 @@ export function PositionOverview() {
             </div>
           )}
 
+          {/* Создать vault */}
+          {mounted && isConnected && <CreateVaultButton />}
+
           {mounted && isConnected && !isLoadingVaults && !isRefreshing && vaults.length === 0 && (
             <div style={{ textAlign: "center", padding: "24px 0", color: "hsl(var(--muted-foreground))" }}>
               <AlertTriangle size={32} style={{ margin: "0 auto 12px", opacity: 0.5 }} />
               <p>You don't have any vaults yet</p>
+              <div style={{ maxWidth: '500px', margin: '24px auto 0', fontSize: '0.875rem', lineHeight: '1.5', color: 'hsl(var(--muted-foreground))', opacity: 0.8 }}>
+                <p><strong>Citadel Protocol</strong> is your automated protection layer on Aave V3. Each vault acts as an isolated account.</p>
+                <p style={{ marginTop: '8px' }}>You can set custom <strong>Warning</strong> and <strong>Target Health Factors</strong>. When the market drops and your HF hits the Warning level, our smart contracts will automatically execute a flash loan to repay debt and rebalance your position back to the Target HF, preventing liquidations.</p>
+              </div>
             </div>
           )}
-
-          {/* Создать vault */}
-          {mounted && isConnected && <CreateVaultButton />}
 
           {/* Список vault'ов */}
           {mounted && !isRefreshing && (

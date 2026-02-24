@@ -266,11 +266,13 @@
 }
 
 .protectionButton {
+  font-family: 'Berkeley Mono', monospace;
   background-color: hsl(var(--primary));
-  color: #000;
+  color: #fff;
   border: none;
-  font-weight: 700;
-  height: 2rem;
+  font-weight: 500;
+  height: 1.75rem;
+  font-size: 0.75rem;
   min-width: 8.5rem;
 }
 

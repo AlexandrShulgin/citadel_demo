@@ -1,0 +1,83 @@
+.wrapper {
+  min-height: 100vh;
+  background-color: hsl(var(--background));
+}
+
+.header {
+  border-bottom: 1px solid hsl(var(--border));
+  background-color: hsla(var(--card) / 0.8);
+  backdrop-filter: blur(24px);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: 1rem 0;
+}
+
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  max-width: 800px;
+}
+
+.backLink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.backLink:hover {
+  color: hsl(var(--foreground));
+}
+
+.content {
+  padding-top: 3rem;
+  padding-bottom: 5rem;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+  margin-bottom: 2rem;
+}
+
+.textBody {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: hsl(var(--muted-foreground));
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.textBody h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  margin-top: 2rem;
+  margin-bottom: -0.5rem;
+}
+
+.textBody p {
+  margin: 0;
+}
+
+.textBody ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.textBody li {
+  line-height: 1.6;
+}

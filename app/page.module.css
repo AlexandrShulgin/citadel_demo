@@ -69,23 +69,10 @@
   gap: 0.75rem;
 }
 
-.logoIcon {
-  display: flex;
+.logoImage {
   height: 2.5rem;
-  width: 2.5rem;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.5rem;
-  background-color: hsla(var(--primary) / 0.1);
-  border: 1px solid hsl(var(--primary));
-  box-shadow: 0 10px 15px -3px hsla(var(--primary) / 0.1);
-
-}
-
-.shieldIcon {
-  height: 1.5rem;
-  width: 1.5rem;
-  color: hsl(var(--primary));
+  width: auto;
+  object-fit: contain;
 }
 
 .logoTitle {
@@ -131,11 +118,21 @@
 }
 
 .settingsButton {
-  background-color: hsl(var(--primary));
-  font-weight: 700;
+  font-family: 'Berkeley Mono', monospace !important;
+  background-color: hsl(var(--primary)) !important;
+  color: #fff !important;
+  border: none !important;
+  font-weight: 500 !important;
+  height: 1.75rem !important;
+  font-size: 0.75rem !important;
+  padding: 0 0.75rem !important;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.settingsButton:hover {
+  background-color: hsla(var(--primary) / 0.8) !important;
 }
 
 .arbitrumIcon {
@@ -284,4 +281,58 @@
   50% {
     opacity: 0.5;
   }
+}
+
+.footer {
+  border-top: 1px solid hsl(var(--border));
+  padding: 1rem 0;
+  margin-top: 2rem;
+}
+
+.footerInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  /* in case it gets too narrow */
+  gap: 1rem;
+}
+
+.footerText {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  font-family: 'Berkeley Mono', monospace;
+}
+
+.footerLinks {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  /* space between terms link and github link */
+}
+
+.footerLink {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footerLink:hover {
+  color: hsl(var(--foreground));
+}
+
+.footerIcon {
+  color: hsl(var(--muted-foreground));
+  transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.footerIcon:hover {
+  color: hsl(var(--foreground));
 }

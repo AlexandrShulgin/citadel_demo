@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     "Professional DeFi dashboard for monitoring and protecting your AAVE V3 positions from liquidation with real-time health factor tracking",
   generator: "v0.app",
   icons: {
-    icon: "/citadel.ico",
+    icon: "/newIcon.svg",
   },
 }
 
