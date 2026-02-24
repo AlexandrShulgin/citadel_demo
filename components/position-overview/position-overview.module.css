@@ -162,7 +162,7 @@
 }
 
 .statusHealthy {
-  color: hsl(var(--chart-3));
+  color: hsl(var(--chart-1));
 }
 
 .protectionBox {
