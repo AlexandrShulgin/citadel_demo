@@ -5,6 +5,8 @@
   touch-action: none;
   align-items: center;
   user-select: none;
+  margin-top: 0.3rem;
+  margin-bottom: 0.3rem;
 }
 
 .slider[data-disabled] {
