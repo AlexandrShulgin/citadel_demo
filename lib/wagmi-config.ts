@@ -4,7 +4,7 @@ import { base } from "wagmi/chains"
 import { metaMask, coinbaseWallet, walletConnect, injected } from "wagmi/connectors"
 
 // WalletConnect ProjectId — замените на реальный с cloud.walletconnect.com
-const WC_PROJECT_ID = "3b0ba2c3e0db89abf48ebf97f697c692"
+const WC_PROJECT_ID = process.env.NEXT_PUBLIC_WC_PROJECT_ID || ""
 
 export const wagmiConfig = createConfig(
   getDefaultConfig({
@@ -12,7 +12,7 @@ export const wagmiConfig = createConfig(
     chains: [base],
     transports: {
       // RPC URL for each chain
-      [base.id]: http("https://base-mainnet.g.alchemy.com/v2/iDUYwwzWmOhPxY9GJEVtE"),
+      [base.id]: http(`https://base-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_ID}`),
     },
 
     // Required API Keys
