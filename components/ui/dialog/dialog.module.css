@@ -10,17 +10,36 @@
 }
 
 .content {
-  background-color: #031116;
+  background-color: hsl(var(--card));
+  border-radius: 0.5rem;
+  border: 1px solid #0663b7;
   width: 90%;
-  max-width: 800px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
   animation: slideIn 0.2s ease-out;
 }
 
+.sm {
+  max-width: 400px;
+}
+
+.md {
+  max-width: 700px;
+}
+
+.lg {
+  max-width: 950px;
+}
+
+.xl {
+  max-width: 1200px;
+}
+
 .header {
-  padding: 1.25rem 1.5rem;
+  padding: 1rem 1.5rem;
+  background-color: #01192e;
+  border-radius: 0.5rem 0.5rem 0 0;
   border-bottom: 1px solid hsla(var(--primary) / 0.2);
   display: flex;
   align-items: center;
@@ -54,6 +73,7 @@
 .body {
   overflow-y: auto;
   flex: 1;
+  padding: 1.5rem;
 }
 
 @keyframes fadeIn {

@@ -33,12 +33,16 @@
   background-color: #01192e;
   padding: 1rem;
   border-radius: 0.5rem 0.5rem 0 0;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .headerActions {
   display: flex;
   gap: 0.5rem;
   margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .headerButton {
@@ -202,6 +206,13 @@
   grid-template-columns: 7fr 3fr;
   gap: 1.5rem;
   align-items: center;
+}
+
+@media (max-width: 639px) {
+  .controlsRow {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
 }
 
 .sliderRow {
@@ -368,4 +379,305 @@
   50% {
     opacity: 0.5;
   }
+}
+
+.detailsArrowBtn {
+  font-size: 0.75rem;
+  color: hsl(var(--primary));
+  padding: 0;
+  height: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+}
+
+.detailsArrowBtn:hover {
+  color: hsl(var(--muted-foreground));
+  background: transparent;
+}
+
+.modalTabs {
+  display: flex;
+  gap: 1rem;
+  border-bottom: 1px solid hsl(var(--border));
+  margin-bottom: 1rem;
+}
+
+.modalTab {
+  background: transparent;
+  border: none;
+  padding: 0.5rem 0;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.activeModalTab {
+  background: transparent;
+  border: none;
+  padding: 0.5rem 0;
+  color: hsl(var(--primary));
+  border-bottom: 2px solid hsl(var(--primary));
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.modalTableContainer {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.assetTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.assetTable th {
+  text-align: left;
+  padding: 0.5rem;
+  color: hsl(var(--muted-foreground));
+  font-weight: 500;
+  border-bottom: 1px solid hsla(var(--border) / 0.5);
+}
+
+.assetTable td {
+  padding: 0.75rem 0.5rem;
+  vertical-align: middle;
+  border-bottom: 1px solid hsla(var(--border) / 0.5);
+}
+
+.tableAssetCol {
+  display: flex;
+  flex-direction: column;
+}
+
+.tableSymbol {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.tablePrice {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.customSelectContainer {
+  position: relative;
+  width: 100%;
+}
+
+.customSelectHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.customSelectHeader:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.selectHeaderLeft {
+  display: flex;
+  flex-direction: column;
+}
+
+.selectSymbol {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: hsl(var(--foreground));
+}
+
+.selectBalance {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.customSelectDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 0.25rem;
+  max-height: 250px;
+  overflow-y: auto;
+  background: rgba(1, 25, 46, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  z-index: 50;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+.selectItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.selectItem:last-child {
+  border-bottom: none;
+}
+
+.selectItem:hover:not(.selectItemDisabled) {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.selectItemDisabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(100%);
+}
+
+.modalInput {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  color: hsl(var(--foreground));
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.modalInput:focus {
+  border-color: hsl(var(--primary));
+}
+
+.usdAmountPreview {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  margin-top: 0.25rem;
+  padding-left: 0.25rem;
+}
+
+.percentBtnContainer {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.percentBtn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.375rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+  padding: 0.25rem 0;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.percentBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.swapModalContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.swapBox {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 1rem;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.swapBoxHeader {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.swapInputRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.swapInput {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 2rem;
+  width: 100%;
+  outline: none;
+}
+
+.swapInput::placeholder {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.swapAssetSelect {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.5rem 0.75rem;
+  border-radius: 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.swapAssetSelect:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.swapDivider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: -0.75rem 0;
+  z-index: 10;
+}
+
+.swapDividerIcon {
+  background: #01192e;
+  border: 4px solid hsl(var(--card));
+  border-radius: 50%;
+  padding: 0.25rem;
+  color: white;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.swapDividerIcon:hover {
+  transform: rotate(180deg);
+}
+
+.swapMainButton {
+  margin-top: 0.5rem;
+  background: linear-gradient(90deg, #ff007f 0%, #aa00ff 100%);
+  color: white;
+  font-weight: 700;
+  font-size: 1.125rem;
+  height: 3.5rem;
+  border-radius: 1rem;
+  border: none;
+}
+
+.swapMainButton:hover {
+  opacity: 0.9;
 }

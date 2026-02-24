@@ -59,6 +59,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .logoWrapper {
@@ -104,6 +106,13 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+}
+
+@media (max-width: 639px) {
+  .headerActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 
 .liveBadge {

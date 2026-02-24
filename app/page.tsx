@@ -3,7 +3,8 @@
 import { Shield, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button/button"
 import { PositionOverview } from "@/components/position-overview/position-overview"
-import { useAccount, useConnect, useDisconnect } from "wagmi"
+import { ConnectKitButton } from "connectkit"
+import { useAccount } from "wagmi"
 import { useEffect, useState } from "react"
 import styles from "./page.module.css"
 
@@ -15,13 +16,10 @@ function useMounted() {
   return mounted
 }
 
+
 function WalletButton() {
   const mounted = useMounted()
-  const { address, isConnected } = useAccount()
-  const { connect, connectors, isPending } = useConnect()
-  const { disconnect } = useDisconnect()
 
-  // Пока не смонтировано — показываем заглушку без состояния кошелька
   if (!mounted) {
     return (
       <Button className={styles.settingsButton} disabled>
@@ -30,27 +28,28 @@ function WalletButton() {
     )
   }
 
-  if (isConnected && address) {
-    return (
-      <Button className={styles.settingsButton} variant="outline" onClick={() => disconnect()}>
-        {address.slice(0, 6)}…{address.slice(-4)}
-      </Button>
-    )
-  }
-
-  const connector =
-    connectors.find((c) => c.id === "injected") ??
-    connectors.find((c) => c.id === "metaMask") ??
-    connectors[0]
-
   return (
-    <Button
-      className={styles.settingsButton}
-      onClick={() => connector && connect({ connector })}
-      disabled={isPending || !connector}
-    >
-      {isPending ? "Подключение…" : "CONNECT WALLET"}
-    </Button>
+    <ConnectKitButton.Custom>
+      {({ isConnected, isConnecting, show, address, ensName }) => {
+        if (isConnected) {
+          return (
+            <Button className={styles.settingsButton} variant="outline" onClick={show}>
+              {ensName ?? (address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "CONNECTED")}
+            </Button>
+          )
+        }
+
+        return (
+          <Button
+            className={styles.settingsButton}
+            onClick={show}
+            disabled={isConnecting}
+          >
+            CONNECT WALLET
+          </Button>
+        )
+      }}
+    </ConnectKitButton.Custom>
   )
 }
 
@@ -81,22 +80,6 @@ export default function Home() {
       </header>
 
       <main className={`${styles.container} ${styles.main}`}>
-        {/* Alert Banner — только после mount и при подключённом кошельке */}
-        {mounted && isConnected && (
-          <div className={styles.alertBanner}>
-            <div className={styles.alertContent}>
-              <Zap className={styles.alertIcon} />
-              <div>
-                <h3 className={styles.alertTitle}>Protection Active</h3>
-                <p className={styles.alertDescription}>
-                  Your positions are being monitored in real-time on Base mainnet.
-                  Automatic protection triggers when health factor drops below your threshold.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Main Grid */}
         <div className={styles.mainGrid}>
           <div className={styles.overviewContainer}>

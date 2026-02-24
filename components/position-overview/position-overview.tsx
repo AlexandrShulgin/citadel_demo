@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import {
   useAccount,
   useReadContract,
+  useReadContracts,
   useWriteContract,
   useWaitForTransactionReceipt,
 } from "wagmi"
@@ -26,6 +27,35 @@ import {
   AAVE_POOL_ABI,
   AAVE_ORACLE_ABI,
 } from "@/lib/contracts"
+import aaveAssetsRaw from "@/lib/aave-base-assets.json"
+import { useMemo } from "react"
+import { ChevronDown, ChevronRight, ArrowDownUp } from "lucide-react"
+import { toast } from "sonner"
+
+export type AaveSymbol = keyof typeof aaveAssetsRaw;
+export interface AaveAsset {
+  symbol: AaveSymbol;
+  underlying: `0x${string}`;
+  aToken: `0x${string}`;
+  vToken?: `0x${string}`;
+}
+export const AAVE_ASSETS: AaveAsset[] = Object.entries(aaveAssetsRaw).map(([symbol, data]) => ({
+  symbol: symbol as AaveSymbol,
+  underlying: data.underlying as `0x${string}`,
+  aToken: data.aToken as `0x${string}`,
+  vToken: (data as any).vToken as `0x${string}` | undefined,
+}));
+
+export interface ParsedAsset extends AaveAsset {
+  decimals: number;
+  price: number;
+  wallet: number;
+  walletUSD: number;
+  collateral: number;
+  collateralUSD: number;
+  debt: number;
+  debtUSD: number;
+}
 
 // ──────────────────────────────────────────────────────────────
 // Вспомогательные утилиты
@@ -164,114 +194,123 @@ interface VaultCardProps {
 }
 
 function VaultCard({ vaultAddress, index }: VaultCardProps) {
-  const [modalType, setModalType] = useState<"supply" | "borrow" | null>(null)
-  const [inputAmount, setInputAmount] = useState("")
+  const { address } = useAccount()
+  const [actionModal, setActionModal] = useState<{ type: "deposit" | "withdraw" | "borrow" | "repay", defaultAsset?: AaveSymbol } | null>(null)
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false)
   const [warningSliderHF, setWarningSliderHF] = useState(1.2)
   const [targetSliderHF, setTargetSliderHF] = useState(1.5)
 
-  const { writeContract, data: txHash, isPending: isTxPending, reset: resetTx } = useWriteContract()
+  const { writeContract, data: txHash, isPending: isTxPending, error: txError } = useWriteContract()
   const { isLoading: isTxConfirming, isSuccess: isTxSuccess } = useWaitForTransactionReceipt({ hash: txHash })
 
-  // Состояние для выпадающего меню действий
-  const [activeAction, setActiveAction] = useState<"deposit" | "withdraw" | "borrow" | "repay" | null>(null)
+  useEffect(() => {
+    if (txError) toast.error("Transaction failed", { description: txError.message })
+  }, [txError])
 
-  // Цены из Aave Oracle (8 decimals)
-  const { data: ethPrice } = useReadContract({
-    chainId: base.id, address: ADDRESSES.AaveOracle, abi: AAVE_ORACLE_ABI, functionName: "getAssetPrice", args: [ADDRESSES.WETH]
-  })
-  const { data: usdcPrice } = useReadContract({
-    chainId: base.id, address: ADDRESSES.AaveOracle, abi: AAVE_ORACLE_ABI, functionName: "getAssetPrice", args: [ADDRESSES.USDC]
-  })
+  useEffect(() => {
+    if (isTxSuccess) {
+      toast.success("Transaction confirmed", { description: "Your protection settings were updated successfully." })
+    }
+  }, [isTxSuccess])
 
-  const ethPriceNum = ethPrice ? Number(formatUnits(ethPrice as bigint, 8)) : 0
-  const usdcPriceNum = usdcPrice ? Number(formatUnits(usdcPrice as bigint, 8)) : 0
+  // 1. Формируем массив вызовов для multicall
+  const baseCalls = useMemo(() => {
+    const calls: any[] = []
+    AAVE_ASSETS.forEach(asset => {
+      // 0: Цена
+      calls.push({ chainId: base.id, address: ADDRESSES.AaveOracle, abi: AAVE_ORACLE_ABI, functionName: 'getAssetPrice', args: [asset.underlying] })
+      // 1: Decimals
+      calls.push({ chainId: base.id, address: asset.underlying, abi: ERC20_ABI, functionName: 'decimals' })
+      // 2: Баланс кошелька
+      if (address) {
+        calls.push({ chainId: base.id, address: asset.underlying, abi: ERC20_ABI, functionName: 'balanceOf', args: [address] })
+      } else {
+        calls.push({ chainId: base.id, address: asset.underlying, abi: ERC20_ABI, functionName: 'decimals' }) // Заглушка, если нет кошелька
+      }
+      // 3: aToken (Collateral) баланс Vault'а
+      calls.push({ chainId: base.id, address: asset.aToken, abi: ERC20_ABI, functionName: 'balanceOf', args: [vaultAddress] })
+      // 4: vToken (Debt) баланс Vault'а
+      if (asset.vToken) {
+        calls.push({ chainId: base.id, address: asset.vToken, abi: ERC20_ABI, functionName: 'balanceOf', args: [vaultAddress] })
+      } else {
+        calls.push({ chainId: base.id, address: asset.underlying, abi: ERC20_ABI, functionName: 'decimals' }) // Заглушка
+      }
+    })
+    return calls
+  }, [vaultAddress, address])
 
-  // Чтение данных vault
-  const { data: healthFactorRaw, refetch: refetchHF } = useReadContract({
-    chainId: base.id,
-    address: vaultAddress,
-    abi: CITADEL_VAULT_ABI,
-    functionName: "getHealthFactor",
-  })
-
-  const { data: aWETHBalance, refetch: refetchSupply } = useReadContract({
-    chainId: base.id,
-    address: ADDRESSES.aWETH,
-    abi: ERC20_ABI,
-    functionName: "balanceOf",
-    args: [vaultAddress],
-  })
-
-  const { data: vUSDCBalance, refetch: refetchBorrow } = useReadContract({
-    chainId: base.id,
-    address: ADDRESSES.vUSDC,
-    abi: ERC20_ABI,
-    functionName: "balanceOf",
-    args: [vaultAddress],
-  })
-
-  const { data: aaveAccount, refetch: refetchAave } = useReadContract({
-    chainId: base.id,
-    address: ADDRESSES.AavePool,
-    abi: AAVE_POOL_ABI,
-    functionName: "getUserAccountData",
-    args: [vaultAddress],
+  const { data: results, refetch: refetchAssets } = useReadContracts({
+    contracts: baseCalls,
   })
 
-  const { data: warningHFRaw } = useReadContract({
-    chainId: base.id,
-    address: vaultAddress,
-    abi: CITADEL_VAULT_ABI,
-    functionName: "warningHF",
+  // 2. Парсим результаты multicall
+  const parsedAssets = useMemo<ParsedAsset[]>(() => {
+    if (!results) return []
+    return AAVE_ASSETS.map((asset, i) => {
+      const idx = i * 5
+      const priceRaw = results[idx]?.result as bigint | undefined
+      const decimals = (results[idx + 1]?.result as number) || 18
+
+      const walletRaw = results[idx + 2]?.result as bigint | undefined
+      const aTokenRaw = results[idx + 3]?.result as bigint | undefined
+      const vTokenRaw = asset.vToken ? (results[idx + 4]?.result as bigint | undefined) : 0n
+
+      const price = priceRaw ? Number(formatUnits(priceRaw, 8)) : 0
+      const wallet = walletRaw && address ? Number(formatUnits(walletRaw, decimals)) : 0
+      const collateral = aTokenRaw ? Number(formatUnits(aTokenRaw, decimals)) : 0
+      const debt = vTokenRaw ? Number(formatUnits(vTokenRaw, decimals)) : 0
+
+      return {
+        ...asset,
+        decimals,
+        price,
+        wallet,
+        walletUSD: wallet * price,
+        collateral,
+        collateralUSD: collateral * price,
+        debt,
+        debtUSD: debt * price
+      }
+    })
+  }, [results, address])
+
+  // 3. Данные самого Vault
+  const { data: vaultData, refetch: refetchVault } = useReadContracts({
+    contracts: [
+      { chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: 'getHealthFactor' },
+      { chainId: base.id, address: ADDRESSES.AavePool, abi: AAVE_POOL_ABI, functionName: 'getUserAccountData', args: [vaultAddress] },
+      { chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: 'warningHF' },
+      { chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: 'targetHF' },
+      { chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: 'paused' },
+      { chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: 'needsProtection' },
+      { chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: 'rewardBps' },
+    ]
   })
 
-  const { data: targetHFRaw } = useReadContract({
-    chainId: base.id,
-    address: vaultAddress,
-    abi: CITADEL_VAULT_ABI,
-    functionName: "targetHF",
-  })
-
-  const { data: isPaused } = useReadContract({
-    chainId: base.id,
-    address: vaultAddress,
-    abi: CITADEL_VAULT_ABI,
-    functionName: "paused",
-  })
-
-  const { data: needsProtectionRaw } = useReadContract({
-    chainId: base.id,
-    address: vaultAddress,
-    abi: CITADEL_VAULT_ABI,
-    functionName: "needsProtection",
-  })
-
-  const { data: rewardBpsRaw } = useReadContract({
-    chainId: base.id,
-    address: vaultAddress,
-    abi: CITADEL_VAULT_ABI,
-    functionName: "rewardBps",
-  })
+  const healthFactorRaw = vaultData?.[0]?.result as bigint | undefined
+  const aaveAccount = vaultData?.[1]?.result as readonly [bigint, bigint, bigint, bigint, bigint, bigint] | undefined
+  const warningHFRaw = vaultData?.[2]?.result as bigint | undefined
+  const targetHFRaw = vaultData?.[3]?.result as bigint | undefined
+  const isPaused = vaultData?.[4]?.result as boolean | undefined
+  const needsProtectionRaw = vaultData?.[5]?.result as boolean | undefined
+  const rewardBpsRaw = vaultData?.[6]?.result as bigint | undefined
 
   // Данные для UI
-  const healthFactor = hfToNumber(healthFactorRaw as bigint | undefined)
-  const supplyBalanceWETH = aWETHBalance ? Number(formatUnits(aWETHBalance as bigint, 18)) : 0
-  const debtBalanceUSDC = vUSDCBalance ? Number(formatUnits(vUSDCBalance as bigint, 6)) : 0
+  const healthFactor = hfToNumber(healthFactorRaw)
 
-  const accData = aaveAccount as unknown as readonly [bigint, bigint, bigint, bigint, bigint, bigint] | undefined
-  const totalCollateralUSD = accData ? Number(formatUnits(accData[0], 8)) : 0
-  const totalDebtUSD = accData ? Number(formatUnits(accData[1], 8)) : 0
-  const availableBorrowUSD = accData ? Number(formatUnits(accData[2], 8)) : 0
-  const ltv = accData ? Number(accData[4]) / 100 : 0
+  // Aave Account Metrics:
+  const totalCollateralUSD = aaveAccount ? Number(formatUnits(aaveAccount[0], 8)) : 0
+  const totalDebtUSD = aaveAccount ? Number(formatUnits(aaveAccount[1], 8)) : 0
+  const availableBorrowUSD = aaveAccount ? Number(formatUnits(aaveAccount[2], 8)) : 0
+  const ltv = aaveAccount ? Number(aaveAccount[4]) / 100 : 0
   const rewardBps = rewardBpsRaw ? Number(rewardBpsRaw) : 0
 
-  const warningHF = hfToNumber(warningHFRaw as bigint | undefined) || 1.2
-  const targetHF = hfToNumber(targetHFRaw as bigint | undefined) || 1.5
+  const warningHF = hfToNumber(warningHFRaw) || 1.2
+  const targetHF = hfToNumber(targetHFRaw) || 1.5
 
-  // Синхронизируем слайдеры с данными из контракта при загрузке
   useEffect(() => {
-    if (warningHFRaw) setWarningSliderHF(hfToNumber(warningHFRaw as bigint))
-    if (targetHFRaw) setTargetSliderHF(hfToNumber(targetHFRaw as bigint))
+    if (warningHFRaw) setWarningSliderHF(hfToNumber(warningHFRaw))
+    if (targetHFRaw) setTargetSliderHF(hfToNumber(targetHFRaw))
   }, [warningHFRaw, targetHFRaw])
 
   const isHealthy = healthFactor === 999 || healthFactor >= 1.5
@@ -284,56 +323,7 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
 
   const hfDisplay = healthFactor === 999 ? "∞" : healthFactor.toFixed(2)
 
-  function refetchAll() {
-    refetchHF()
-    refetchSupply()
-    refetchBorrow()
-    refetchAave()
-  }
-
-  // Транзакции
-  function handleApproveWETH() {
-    console.log("[Citadel] handleApproveWETH", { inputAmount, vaultAddress })
-    if (!inputAmount) return
-    const amount = parseUnits(inputAmount, 18)
-    writeContract({ chainId: base.id, address: ADDRESSES.WETH, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, amount] })
-  }
-
-  function handleDeposit() {
-    console.log("[Citadel] handleDeposit", { inputAmount, vaultAddress })
-    if (!inputAmount) return
-    const amount = parseUnits(inputAmount, 18)
-    writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "deposit", args: [ADDRESSES.WETH, amount] })
-  }
-
-  function handleWithdraw() {
-    console.log("[Citadel] handleWithdraw", { inputAmount, vaultAddress })
-    if (!inputAmount) return
-    const amount = parseUnits(inputAmount, 18)
-    writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "withdraw", args: [ADDRESSES.WETH, amount] })
-  }
-
-  function handleBorrow() {
-    console.log("[Citadel] handleBorrow", { inputAmount, vaultAddress })
-    if (!inputAmount) return
-    const amount = parseUnits(inputAmount, 6)
-    writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "borrow", args: [ADDRESSES.USDC, amount] })
-  }
-
-  function handleApproveUSDC() {
-    console.log("[Citadel] handleApproveUSDC", { inputAmount, vaultAddress })
-    if (!inputAmount) return
-    const amount = parseUnits(inputAmount, 6)
-    writeContract({ chainId: base.id, address: ADDRESSES.USDC, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, amount] })
-  }
-
-  function handleRepay() {
-    console.log("[Citadel] handleRepay", { inputAmount, vaultAddress })
-    if (!inputAmount) return
-    const amount = parseUnits(inputAmount, 6)
-    writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "repay", args: [ADDRESSES.USDC, amount] })
-  }
-
+  // Транзакции защиты
   function handleAutoLoop() {
     const minHFAfter = BigInt(Math.round(targetSliderHF * 1e18))
     const data = encodeAbiParameters(
@@ -375,139 +365,24 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
         </div>
 
         <div className={styles.headerActions}>
-          <div className={styles.actionWrapper}>
-            <Button size="sm" variant="outline"
-              className={`${styles.headerButton} ${activeAction === 'deposit' ? styles.activeButton : ''}`}
-              onClick={() => setActiveAction(activeAction === 'deposit' ? null : 'deposit')}
-              disabled={!!isPaused}
-            >
-              Deposit
-            </Button>
-            {activeAction === 'deposit' && (
-              <div className={styles.actionDropdown} onClick={(e) => e.stopPropagation()}>
-                <div className={styles.dropdownInputRow}>
-                  <input
-                    type="number"
-                    placeholder="WETH Amount"
-                    value={inputAmount}
-                    onChange={(e) => setInputAmount(e.target.value)}
-                    className={styles.dropdownInput}
-                  />
-                  <div className={styles.amountInfo}>
-                    <p className={styles.nativeAmount}>{inputAmount || "0"} WETH</p>
-                    <p className={styles.usdAmount}>≈ ${(Number(inputAmount || 0) * ethPriceNum).toFixed(2)} USD</p>
-                  </div>
-                </div>
-                <div className={styles.dropdownButtons}>
-                  <Button size="sm" variant="outline" onClick={handleApproveWETH} disabled={isBusy} className={styles.dropdownActionButton}>
-                    {isBusy && activeAction === 'deposit' ? <Loader2 size={14} className="animate-spin" /> : "APPROVE"}
-                  </Button>
-                  <Button size="sm" onClick={handleDeposit} disabled={isBusy} className={styles.dropdownActionButton}>
-                    {isBusy && activeAction === 'deposit' ? <Loader2 size={14} className="animate-spin" /> : "DEPOSIT"}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className={styles.actionWrapper}>
-            <Button size="sm" variant="outline"
-              className={`${styles.headerButton} ${activeAction === 'withdraw' ? styles.activeButton : ''}`}
-              onClick={() => setActiveAction(activeAction === 'withdraw' ? null : 'withdraw')}
-              disabled={!!isPaused}
-            >
-              Withdraw
-            </Button>
-            {activeAction === 'withdraw' && (
-              <div className={styles.actionDropdown} onClick={(e) => e.stopPropagation()}>
-                <div className={styles.dropdownInputRow}>
-                  <input
-                    type="number"
-                    placeholder="WETH Amount"
-                    value={inputAmount}
-                    onChange={(e) => setInputAmount(e.target.value)}
-                    className={styles.dropdownInput}
-                  />
-                  <div className={styles.amountInfo}>
-                    <p className={styles.nativeAmount}>{inputAmount || "0"} WETH</p>
-                    <p className={styles.usdAmount}>≈ ${(Number(inputAmount || 0) * ethPriceNum).toFixed(2)} USD</p>
-                  </div>
-                </div>
-                <div className={styles.dropdownButtons}>
-                  <Button size="sm" onClick={handleWithdraw} disabled={isBusy} className={styles.dropdownActionButton}>
-                    {isBusy && activeAction === 'withdraw' ? <Loader2 size={14} className="animate-spin" /> : "WITHDRAW"}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className={styles.actionWrapper}>
-            <Button size="sm" variant="outline"
-              className={`${styles.headerButton} ${activeAction === 'borrow' ? styles.activeButton : ''}`}
-              onClick={() => setActiveAction(activeAction === 'borrow' ? null : 'borrow')}
-              disabled={!!isPaused}
-            >
-              Borrow
-            </Button>
-            {activeAction === 'borrow' && (
-              <div className={styles.actionDropdown} onClick={(e) => e.stopPropagation()}>
-                <div className={styles.dropdownInputRow}>
-                  <input
-                    type="number"
-                    placeholder="USDC Amount"
-                    value={inputAmount}
-                    onChange={(e) => setInputAmount(e.target.value)}
-                    className={styles.dropdownInput}
-                  />
-                  <div className={styles.amountInfo}>
-                    <p className={styles.nativeAmount}>{inputAmount || "0"} USDC</p>
-                    <p className={styles.usdAmount}>≈ ${(Number(inputAmount || 0) * usdcPriceNum).toFixed(2)} USD</p>
-                  </div>
-                </div>
-                <div className={styles.dropdownButtons}>
-                  <Button size="sm" onClick={handleBorrow} disabled={isBusy} className={styles.dropdownActionButton}>
-                    {isBusy && activeAction === 'borrow' ? <Loader2 size={14} className="animate-spin" /> : "BORROW"}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className={styles.actionWrapper}>
-            <Button size="sm" variant="outline"
-              className={`${styles.headerButton} ${activeAction === 'repay' ? styles.activeButton : ''}`}
-              onClick={() => setActiveAction(activeAction === 'repay' ? null : 'repay')}
-              disabled={!!isPaused}
-            >
+          <Button size="sm" variant="outline" className={styles.headerButton} onClick={() => setActionModal({ type: 'deposit' })} disabled={!!isPaused}>
+            Deposit
+          </Button>
+          {totalCollateralUSD > 0 && (
+            <>
+              <Button size="sm" variant="outline" className={styles.headerButton} onClick={() => setActionModal({ type: 'withdraw' })} disabled={!!isPaused}>
+                Withdraw
+              </Button>
+              <Button size="sm" variant="outline" className={styles.headerButton} onClick={() => setActionModal({ type: 'borrow' })} disabled={!!isPaused}>
+                Borrow
+              </Button>
+            </>
+          )}
+          {totalDebtUSD > 0 && (
+            <Button size="sm" variant="outline" className={styles.headerButton} onClick={() => setActionModal({ type: 'repay' })} disabled={!!isPaused}>
               Repay
             </Button>
-            {activeAction === 'repay' && (
-              <div className={styles.actionDropdown} onClick={(e) => e.stopPropagation()}>
-                <div className={styles.dropdownInputRow}>
-                  <input
-                    type="number"
-                    placeholder="USDC Amount"
-                    value={inputAmount}
-                    onChange={(e) => setInputAmount(e.target.value)}
-                    className={styles.dropdownInput}
-                  />
-                  <div className={styles.amountInfo}>
-                    <p className={styles.nativeAmount}>{inputAmount || "0"} USDC</p>
-                    <p className={styles.usdAmount}>≈ ${(Number(inputAmount || 0) * usdcPriceNum).toFixed(2)} USD</p>
-                  </div>
-                </div>
-                <div className={styles.dropdownButtons}>
-                  <Button size="sm" variant="outline" onClick={handleApproveUSDC} disabled={isBusy} className={styles.dropdownActionButton}>
-                    {isBusy && activeAction === 'repay' ? <Loader2 size={14} className="animate-spin" /> : "APPROVE"}
-                  </Button>
-                  <Button size="sm" onClick={handleRepay} disabled={isBusy} className={styles.dropdownActionButton}>
-                    {isBusy && activeAction === 'repay' ? <Loader2 size={14} className="animate-spin" /> : "REPAY"}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
@@ -516,10 +391,16 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
         <div>
           <p className={styles.metricLabel}>Collateral</p>
           <p className={styles.metricValue}>{totalCollateralUSD.toFixed(2)} USD</p>
+          <div className={styles.detailsArrowBtn} onClick={() => setDetailsModalOpen(true)}>
+            View details
+          </div>
         </div>
         <div>
           <p className={styles.metricLabel}>Debt</p>
           <p className={styles.metricValue}>{totalDebtUSD.toFixed(2)} USD</p>
+          <div className={styles.detailsArrowBtn} onClick={() => setDetailsModalOpen(true)}>
+            View details
+          </div>
         </div>
         <div>
           <p className={styles.metricLabel}>Health Factor</p>
@@ -550,10 +431,6 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
           <p className={styles.metricValue}>{availableBorrowUSD.toFixed(2)} USD</p>
         </div>
         <div>
-          <p className={styles.metricLabel}>Reward BPS</p>
-          <p className={styles.metricValue}>{rewardBps}</p>
-        </div>
-        <div>
           <p className={styles.metricLabel}>LTV</p>
           <p className={styles.metricValue}>{ltv.toFixed(2)}%</p>
           <p className={styles.metricLabel}>Max</p>
@@ -566,7 +443,7 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
           <Shield className={styles.shieldIcon} />
           <Label className={styles.protectionLabel}>Protection Threshold (Warning HF)</Label>
         </div>
-        <div className={styles.controlsRow}>
+        <div className={styles.controlsRow} >
           <div className={styles.sliderWrapper}>
             <div className={styles.sliderRow}>
               <span className={styles.metricLabel}>Warning Health Factor</span>
@@ -589,7 +466,7 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
             {isBusy ? <Loader2 size={14} className="animate-spin" /> : "SET WARNING HF"}
           </Button>
         </div>
-        <div className={styles.controlsRow} style={{ marginTop: '1rem' }}>
+        <div className={styles.controlsRow} style={{ marginTop: '1rem', marginBottom: '1rem' }}>
           <div className={styles.sliderWrapper}>
             <div className={styles.sliderRow}>
               <span className={styles.metricLabel}>Target Health Factor</span>
@@ -613,100 +490,330 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
           </Button>
         </div>
 
-        <p className={styles.autoProtectNote}>
+        {/* <p className={styles.autoProtectNote}>
           <div style={{ display: "flex", gap: 8 }}>
             <Button size="sm" variant="outline" className={styles.headerButton}
               onClick={handleAutoLoop} disabled={isBusy || !!isPaused}>
-              {isBusy ? <Loader2 size={14} className="animate-spin" /> : "AUTO LOOP"}
+              {isBusy ? <Loader2 size={14} className="animate-spin" /> : "AUTO LOOP (WETH -> USDC)"}
             </Button>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Button size="sm" variant="outline" className={styles.headerButton}
-              onClick={handleAutoLoop} disabled={isBusy || !!isPaused}>
-              {isBusy ? <Loader2 size={14} className="animate-spin" /> : "AUTO LOOP"}
-            </Button>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Button size="sm" variant="outline" className={styles.headerButton}
-              onClick={handleAutoLoop} disabled={isBusy || !!isPaused}>
-              {isBusy ? <Loader2 size={14} className="animate-spin" /> : "AUTO LOOP"}
-            </Button>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Button size="sm" variant="outline" className={styles.headerButton}
-              onClick={handleAutoLoop} disabled={isBusy || !!isPaused}>
-              {isBusy ? <Loader2 size={14} className="animate-spin" /> : "AUTO LOOP"}
-            </Button>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Button size="sm" variant="outline" className={styles.headerButton}
-              onClick={handleAutoLoop} disabled={isBusy || !!isPaused}>
-              {isBusy ? <Loader2 size={14} className="animate-spin" /> : "AUTO LOOP"}
-            </Button>
-          </div>
-        </p>
+        </p> */}
 
-        {isTxSuccess && (
-          <p style={{ color: "var(--primary, #14f46f)", fontSize: "0.75rem", marginTop: 4 }}>
-            ✓ Транзакция подтверждена
-          </p>
-        )}
       </div>
 
-      {/* Модал */}
-      <Dialog
-        isOpen={!!modalType}
-        onClose={() => { setModalType(null); setInputAmount(""); resetTx() }}
-        title={modalType === "supply" ? "Supply / Withdraw WETH" : "Borrow / Repay USDC"}
-      >
-        <input
-          type="number"
-          placeholder={modalType === "supply" ? "Amount WETH" : "Amount USDC"}
-          value={inputAmount}
-          onChange={(e) => setInputAmount(e.target.value)}
-          style={{
-            width: "100%", padding: "8px 12px", borderRadius: 8,
-            background: "hsl(var(--input))", color: "hsl(var(--foreground))",
-            border: "1px solid hsl(var(--border))", marginBottom: 12,
-          }}
+      {actionModal && (
+        <ActionModal
+          type={actionModal.type}
+          defaultAsset={actionModal.defaultAsset}
+          assets={parsedAssets}
+          vaultAddress={vaultAddress}
+          onClose={() => setActionModal(null)}
+          refetch={() => { refetchAssets(); refetchVault() }}
         />
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {modalType === "supply" && (
-            <>
-              <Button size="sm" onClick={handleApproveWETH} disabled={isBusy}>
-                {isBusy ? <Loader2 size={14} className="animate-spin" /> : "1. APPROVE WETH"}
-              </Button>
-              <Button size="sm" variant="outline" onClick={handleDeposit} disabled={isBusy}>
-                2. DEPOSIT
-              </Button>
-              <Button size="sm" variant="outline" onClick={handleWithdraw} disabled={isBusy}>
-                WITHDRAW
-              </Button>
-            </>
-          )}
-          {modalType === "borrow" && (
-            <>
-              <Button size="sm" onClick={handleBorrow} disabled={isBusy}>
-                {isBusy ? <Loader2 size={14} className="animate-spin" /> : "BORROW USDC"}
-              </Button>
-              <Button size="sm" variant="outline" onClick={handleApproveUSDC} disabled={isBusy}>
-                1. APPROVE USDC
-              </Button>
-              <Button size="sm" variant="outline" onClick={handleRepay} disabled={isBusy}>
-                2. REPAY
-              </Button>
-            </>
-          )}
-        </div>
-        {isTxSuccess && (
-          <p style={{ color: "var(--primary, #14f46f)", marginTop: 8, fontSize: "0.8rem" }}>
-            ✓ Транзакция подтверждена
-          </p>
-        )}
-      </Dialog>
-    </div>
+      )}
+
+      {
+        detailsModalOpen && (
+          <AssetDetailsModal
+            isOpen={detailsModalOpen}
+            onClose={() => setDetailsModalOpen(false)}
+            assets={parsedAssets}
+            onOpenAction={(type, symbol) => {
+              setDetailsModalOpen(false);
+              setActionModal({ type, defaultAsset: symbol });
+            }}
+          />
+        )
+      }
+    </div >
   )
 }
+
+// ──────────────────────────────────────────────────────────────
+// Модалки
+// ──────────────────────────────────────────────────────────────
+
+function ActionModal({
+  type,
+  defaultAsset,
+  assets,
+  vaultAddress,
+  onClose,
+  refetch
+}: {
+  type: "deposit" | "withdraw" | "borrow" | "repay",
+  defaultAsset?: AaveSymbol,
+  assets: ParsedAsset[],
+  vaultAddress: `0x${string}`,
+  onClose: () => void,
+  refetch: () => void
+}) {
+  const defaultSymbol = defaultAsset || ((type === 'borrow' || type === 'repay') ? "USDC" : "WETH");
+  const [selectedSymbol, setSelectedSymbol] = useState<AaveSymbol>(defaultSymbol);
+  const [amount, setAmount] = useState("");
+  const [isSelectOpen, setIsSelectOpen] = useState(false);
+
+  const { writeContract, data: txHash, isPending, error: writeError } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess, error: receiptError } = useWaitForTransactionReceipt({ hash: txHash });
+  const isBusy = isPending || isConfirming;
+
+  useEffect(() => {
+    if (writeError) toast.error("Transaction failed", { description: writeError.message });
+  }, [writeError]);
+
+  useEffect(() => {
+    if (receiptError) toast.error("Transaction failed", { description: receiptError.message });
+  }, [receiptError]);
+
+  useEffect(() => {
+    if (isSuccess) {
+      toast.success("Transaction confirmed", { description: `Successfully executed ${type}` });
+      setAmount("");
+      refetch();
+    }
+  }, [isSuccess, refetch, type]);
+
+  const handlePercent = (pct: number) => {
+    if (!selectedAsset) return;
+    let maxVal = 0;
+    if (type === 'deposit') maxVal = selectedAsset.wallet;
+    if (type === 'withdraw') maxVal = selectedAsset.collateral;
+    if (type === 'repay') maxVal = selectedAsset.debt;
+    if (type === 'borrow') return; // Maximum borrow is complex to calculate locally
+
+    if (maxVal === 0) return;
+
+    if (pct === 100) {
+      setAmount(maxVal.toString());
+    } else {
+      setAmount((maxVal * pct / 100).toFixed(6).replace(/\.?0+$/, ''));
+    }
+  };
+
+  const shouldShowAsset = (a: ParsedAsset) => {
+    switch (type) {
+      case "deposit": return true; // Show all Aave assets for deposit
+      case "withdraw": return a.collateral > 0;
+      case "borrow": return !!a.vToken;
+      case "repay": return a.debt > 0;
+    }
+  };
+
+  const isAssetEnabled = (a: ParsedAsset) => {
+    switch (type) {
+      case "deposit": return a.wallet > 0;
+      case "withdraw": return a.collateral > 0;
+      case "borrow": return !!a.vToken;
+      case "repay": return a.debt > 0;
+    }
+  };
+
+  const visibleAssets = assets.filter(shouldShowAsset);
+
+  // If the default selected asset was filtered out, select the first enabled one
+  useEffect(() => {
+    if (visibleAssets.length > 0 && !visibleAssets.find(a => a.symbol === selectedSymbol)) {
+      const firstEnabled = visibleAssets.find(isAssetEnabled) || visibleAssets[0];
+      setSelectedSymbol(firstEnabled.symbol);
+    }
+  }, [visibleAssets, selectedSymbol, type]);
+
+  const selectedAsset = assets.find(a => a.symbol === selectedSymbol);
+
+  if (!selectedAsset) return null;
+
+  const getBalanceLabel = (a: ParsedAsset) => {
+    switch (type) {
+      case "deposit": return `Wallet: ${a.wallet.toFixed(6)}`;
+      case "withdraw": return `Vault: ${a.collateral.toFixed(6)}`;
+      case "borrow": return a.vToken ? `Price: $${a.price.toFixed(2)}` : 'Not available';
+      case "repay": return `Debt: ${a.debt.toFixed(6)}`;
+    }
+  };
+
+  const handleApprove = () => {
+    if (!amount) return;
+    const val = parseUnits(amount, selectedAsset.decimals);
+    writeContract({ chainId: base.id, address: selectedAsset.underlying, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, val] });
+  };
+
+  const handleAction = () => {
+    if (!amount) return;
+    const val = parseUnits(amount, selectedAsset.decimals);
+    writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: type, args: [selectedAsset.underlying, val] });
+  };
+
+  const title = type.charAt(0).toUpperCase() + type.slice(1);
+
+  return (
+    <Dialog isOpen={true} onClose={onClose} title={`${title} Asset`} size="sm">
+      <div>
+
+        {/* Кастомный Select */}
+        <div className={styles.customSelectContainer}>
+          <label className={styles.metricLabel}>Select Asset</label>
+          <div className={styles.customSelectHeader} onClick={() => setIsSelectOpen(!isSelectOpen)}>
+            <div className={styles.selectHeaderLeft}>
+              <span className={styles.selectSymbol}>{selectedAsset.symbol}</span>
+              <span className={styles.selectBalance}>{getBalanceLabel(selectedAsset)}</span>
+            </div>
+            <ChevronDown size={16} />
+          </div>
+
+          {isSelectOpen && (
+            <div className={styles.customSelectDropdown}>
+              {visibleAssets.map(a => {
+                const enabled = isAssetEnabled(a);
+                return (
+                  <div
+                    key={a.symbol}
+                    className={`${styles.selectItem} ${!enabled ? styles.selectItemDisabled : ''}`}
+                    onClick={() => {
+                      if (enabled) {
+                        setSelectedSymbol(a.symbol);
+                        setIsSelectOpen(false);
+                      }
+                    }}
+                  >
+                    <div className={styles.selectHeaderLeft}>
+                      <span className={styles.selectSymbol}>{a.symbol}</span>
+                      <span className={styles.selectBalance}>{getBalanceLabel(a)}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className={styles.inputContainer} style={{ marginTop: '1rem' }}>
+          <label className={styles.metricLabel}>Amount</label>
+          <input
+            type="number"
+            placeholder={`0.00`}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className={styles.modalInput}
+          />
+          <p className={styles.usdAmountPreview}>
+            ≈ ${(Number(amount || 0) * selectedAsset.price).toFixed(2)} USD
+          </p>
+          {type !== 'borrow' && (
+            <div className={styles.percentBtnContainer}>
+              {[25, 50, 75, 100].map(pct => (
+                <button key={pct} onClick={() => handlePercent(pct)} className={styles.percentBtn}>
+                  {pct === 100 ? 'MAX' : `${pct}%`}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className={styles.modalActions} style={{ marginTop: '1.5rem', display: 'flex', gap: '8px' }}>
+          {(type === "deposit" || type === "repay") && (
+            <Button size="sm" variant="outline" onClick={handleApprove} disabled={isBusy || !amount} style={{ flex: 1, borderColor: 'hsl(var(--primary))', color: 'hsl(var(--primary))', fontWeight: 700 }}>
+              {isBusy ? <Loader2 size={14} className="animate-spin" /> : "APPROVE"}
+            </Button>
+          )}
+          <Button size="sm" onClick={handleAction} disabled={isBusy || !amount} style={{ flex: 1, fontWeight: 700 }}>
+            {isBusy ? <Loader2 size={14} className="animate-spin" /> : `${type.toUpperCase()}`}
+          </Button>
+        </div>      </div>
+    </Dialog>
+  );
+}
+
+function AssetDetailsModal({ isOpen, onClose, assets, onOpenAction }: { isOpen: boolean, onClose: () => void, assets: ParsedAsset[], onOpenAction: (type: "withdraw" | "repay", symbol: AaveSymbol) => void }) {
+  const supplyAssets = assets.filter(a => a.collateral > 0);
+  const borrowAssets = assets.filter(a => a.debt > 0);
+
+  return (
+    <Dialog isOpen={isOpen} onClose={onClose} title="Asset Details" size="xl">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem' }}>
+
+        {/* Supplies */}
+        <div>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>Your supplies</h3>
+          <div className={styles.modalTableContainer} style={{ maxHeight: '350px' }}>
+            <table className={styles.assetTable}>
+              <thead>
+                <tr>
+                  <th>Asset</th>
+                  <th>Balance</th>
+                  <th>USD Value</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {supplyAssets.map(a => (
+                  <tr key={a.symbol}>
+                    <td className={styles.tableAssetCol}>
+                      <span className={styles.tableSymbol}>{a.symbol}</span>
+                      <span className={styles.tablePrice}>${a.price.toFixed(2)}</span>
+                    </td>
+                    <td>{a.collateral.toFixed(6)}</td>
+                    <td>${a.collateralUSD.toFixed(2)}</td>
+                    <td style={{ textAlign: "right" }}>
+                      <Button size="sm" variant="outline" onClick={() => onOpenAction("withdraw", a.symbol)} className={styles.headerButton}>
+                        Withdraw
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+                {supplyAssets.length === 0 && (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: "center", padding: "2rem", color: "gray" }}>Nothing supplied</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Borrows */}
+        <div>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'hsl(var(--foreground))', marginBottom: '1rem' }}>Your borrows</h3>
+          <div className={styles.modalTableContainer} style={{ maxHeight: '350px' }}>
+            <table className={styles.assetTable}>
+              <thead>
+                <tr>
+                  <th>Asset</th>
+                  <th>Debt</th>
+                  <th>USD Value</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {borrowAssets.map(a => (
+                  <tr key={a.symbol}>
+                    <td className={styles.tableAssetCol}>
+                      <span className={styles.tableSymbol}>{a.symbol}</span>
+                      <span className={styles.tablePrice}>${a.price.toFixed(2)}</span>
+                    </td>
+                    <td>{a.debt.toFixed(6)}</td>
+                    <td>${a.debtUSD.toFixed(2)}</td>
+                    <td style={{ textAlign: "right" }}>
+                      <Button size="sm" variant="outline" onClick={() => onOpenAction("repay", a.symbol)} className={styles.headerButton}>
+                        Repay
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+                {borrowAssets.length === 0 && (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: "center", padding: "2rem", color: "gray" }}>Nothing borrowed</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </Dialog>
+  )
+}
+
 
 // ──────────────────────────────────────────────────────────────
 // Компонент создания нового Vault
@@ -715,8 +822,19 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
 function CreateVaultButton() {
   const [warningHF, setWarningHF] = useState(1.2)
   const [targetHF, setTargetHF] = useState(1.5)
-  const { writeContract, isPending, data: txHash } = useWriteContract()
-  const { isSuccess } = useWaitForTransactionReceipt({ hash: txHash })
+  const { writeContract, isPending, data: txHash, error: txError } = useWriteContract()
+  const { isSuccess, error: receiptError } = useWaitForTransactionReceipt({ hash: txHash })
+
+  useEffect(() => {
+    if (txError) toast.error("Transaction failed", { description: txError.message })
+    if (receiptError) toast.error("Transaction failed", { description: receiptError.message })
+  }, [txError, receiptError])
+
+  useEffect(() => {
+    if (isSuccess) {
+      toast.success("Vault successfully created")
+    }
+  }, [isSuccess])
 
   function handleCreate() {
     writeContract({
@@ -732,28 +850,54 @@ function CreateVaultButton() {
   }
 
   return (
-    <div className={styles.protectionBox} style={{ marginTop: 16 }}>
-      <p className={styles.metricLabel} style={{ marginBottom: 8 }}>Создать новый Vault</p>
-      <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-        <div>
-          <Label className={styles.metricLabel}>Warning HF: {warningHF.toFixed(1)}</Label>
-          <Slider value={[warningHF]} onValueChange={(v) => setWarningHF(v[0])}
-            min={1.1} max={2.0} step={0.1} style={{ width: 120 }} />
+    <div className={styles.positionCard} style={{ marginBottom: '1.5rem' }}>
+      <div className={styles.positionHeader}>
+        <div className={styles.assetInfo}>
+          <div className={styles.assetTitleWrapper}>
+            <h3 className={styles.assetName}>Create a New Vault</h3>
+          </div>
+          <p className={styles.assetDescription}>Deploy a new Citadel vault to manage your positions</p>
         </div>
-        <div>
-          <Label className={styles.metricLabel}>Target HF: {targetHF.toFixed(1)}</Label>
-          <Slider value={[targetHF]} onValueChange={(v) => setTargetHF(v[0])}
-            min={1.2} max={2.5} step={0.1} style={{ width: 120 }} />
-        </div>
-        <Button size="sm" onClick={handleCreate} disabled={isPending}>
-          {isPending ? <Loader2 size={14} className="animate-spin" /> : "CREATE VAULT"}
-        </Button>
       </div>
-      {isSuccess && (
-        <p style={{ color: "var(--primary, #14f46f)", marginTop: 8, fontSize: "0.8rem" }}>
-          ✓ Vault создан
-        </p>
-      )}
+
+      <div className={styles.protectionBox}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.5rem', flexWrap: 'wrap', marginTop: '0.5rem', marginBottom: '1rem' }}>
+
+          {/* Warning HF Slider */}
+          <div className={styles.sliderWrapper} style={{ flex: 1, minWidth: '200px' }}>
+            <div className={styles.sliderRow}>
+              <span className={styles.metricLabel}>Warning Health Factor</span>
+              <span className={styles.hfValue}>{warningHF.toFixed(1)}</span>
+            </div>
+            <Slider value={[warningHF]} onValueChange={(v) => setWarningHF(v[0])}
+              min={1.1} max={2.0} step={0.1} className={styles.slider} />
+            <div className={styles.sliderLabels}>
+              <span>1.1</span>
+              <span>2.0</span>
+            </div>
+          </div>
+
+          {/* Target HF Slider */}
+          <div className={styles.sliderWrapper} style={{ flex: 1, minWidth: '200px' }}>
+            <div className={styles.sliderRow}>
+              <span className={styles.metricLabel}>Target Health Factor</span>
+              <span className={styles.hfValue}>{targetHF.toFixed(1)}</span>
+            </div>
+            <Slider value={[targetHF]} onValueChange={(v) => setTargetHF(v[0])}
+              min={1.2} max={2.5} step={0.1} className={styles.slider} />
+            <div className={styles.sliderLabels}>
+              <span>1.2</span>
+              <span>2.5</span>
+            </div>
+          </div>
+
+          {/* Create Button */}
+          <Button size="sm" onClick={handleCreate} disabled={isPending} style={{ width: '200px', background: 'hsl(var(--primary))', color: '#000', border: 'none', minWidth: '8.5rem', height: '2rem', fontWeight: 700 }}>
+            {isPending ? <Loader2 size={14} className="animate-spin" /> : "CREATE VAULT"}
+          </Button>
+
+        </div>
+      </div>
     </div>
   )
 }
@@ -768,6 +912,13 @@ export function PositionOverview() {
 
   const { address, isConnected } = useAccount()
   const queryClient = useQueryClient()
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const handleRefresh = () => {
+    setIsRefreshing(true)
+    queryClient.invalidateQueries()
+    setTimeout(() => setIsRefreshing(false), 1000)
+  }
 
   const {
     data: vaultAddresses,
@@ -781,7 +932,7 @@ export function PositionOverview() {
     query: { enabled: mounted && isConnected && !!address },
   })
 
-  const vaults = ((vaultAddresses as `0x${string}`[] | undefined) ?? []).slice(0, 1)
+  const vaults = ((vaultAddresses as `0x${string}`[] | undefined) ?? [])
 
   // Выводим vault'ы в консоль для отладки
   useEffect(() => {
@@ -797,14 +948,14 @@ export function PositionOverview() {
           <div className={styles.headerTitleRow}>
             <CardTitle className={styles.title}>Position Overview</CardTitle>
             <Button size="sm" variant="outline" className={styles.headerButton}
-              onClick={() => queryClient.invalidateQueries()} title="Обновить">
-              <RefreshCw size={14} />
+              onClick={handleRefresh} title="Refresh">
+              <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
             </Button>
           </div>
           <CardDescription>
             {mounted && isConnected
-              ? `Ваши vault'ы на Base mainnet · ${shortAddr(address!)}`
-              : "Подключите кошелёк для просмотра позиций"}
+              ? `Your vaults on Base mainnet · ${shortAddr(address!)}`
+              : "Connect wallet to view positions"}
           </CardDescription>
         </CardHeader>
 
@@ -813,7 +964,7 @@ export function PositionOverview() {
           {!mounted && (
             <div style={{ textAlign: "center", padding: "32px 0", color: "hsl(var(--muted-foreground))" }}>
               <Shield size={40} style={{ margin: "0 auto 12px", opacity: 0.4 }} />
-              <p>Подключите кошелёк для просмотра позиций</p>
+              <p>Connect wallet to view positions</p>
             </div>
           )}
 
@@ -821,26 +972,29 @@ export function PositionOverview() {
           {mounted && !isConnected && (
             <div style={{ textAlign: "center", padding: "32px 0", color: "hsl(var(--muted-foreground))" }}>
               <Shield size={40} style={{ margin: "0 auto 12px", opacity: 0.4 }} />
-              <p>Подключите кошелёк, чтобы увидеть ваши vault'ы</p>
+              <p>Connect wallet to see your vaults</p>
             </div>
           )}
 
-          {mounted && isConnected && isLoadingVaults && (
+          {mounted && isConnected && (isLoadingVaults || isRefreshing) && (
             <div style={{ textAlign: "center", padding: "32px 0" }}>
-              <Loader2 size={32} className="animate-spin" style={{ margin: "0 auto 12px" }} />
-              <p className={styles.metricLabel}>Загружаем vault'ы…</p>
+              <Loader2 size={32} className="animate-spin" style={{ margin: "0 auto 12px", color: "hsl(var(--primary))" }} />
+              <p className={styles.metricLabel}>Loading vaults...</p>
             </div>
           )}
 
-          {mounted && isConnected && !isLoadingVaults && vaults.length === 0 && (
+          {mounted && isConnected && !isLoadingVaults && !isRefreshing && vaults.length === 0 && (
             <div style={{ textAlign: "center", padding: "24px 0", color: "hsl(var(--muted-foreground))" }}>
               <AlertTriangle size={32} style={{ margin: "0 auto 12px", opacity: 0.5 }} />
-              <p>У вас пока нет vault'ов</p>
+              <p>You don't have any vaults yet</p>
             </div>
           )}
 
+          {/* Создать vault */}
+          {mounted && isConnected && <CreateVaultButton />}
+
           {/* Список vault'ов */}
-          {mounted && (
+          {mounted && !isRefreshing && (
             <div className={styles.positionsContainer}>
               {vaults.map((vaultAddress, index) => (
                 <div key={vaultAddress}>
@@ -850,9 +1004,6 @@ export function PositionOverview() {
               ))}
             </div>
           )}
-
-          {/* Создать vault */}
-          {mounted && isConnected && <CreateVaultButton />}
         </CardContent>
       </Card>
     </>
