@@ -72,119 +72,6 @@ function shortAddr(addr: string) {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Компонент-логгер: читает все view-данные vault'а и выводит в консоль
-// ──────────────────────────────────────────────────────────────
-
-function VaultLogger({ vaultAddress, index }: { vaultAddress: `0x${string}`; index: number }) {
-  const { data: hf } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "getHealthFactor" })
-
-  // Цены из Aave Oracle (8 decimals)
-  const { data: ethPrice, error: ethPriceError } = useReadContract({
-    chainId: base.id, address: ADDRESSES.AaveOracle, abi: AAVE_ORACLE_ABI, functionName: "getAssetPrice", args: [ADDRESSES.WETH]
-  })
-  const { data: usdcPrice, error: usdcPriceError } = useReadContract({
-    chainId: base.id, address: ADDRESSES.AaveOracle, abi: AAVE_ORACLE_ABI, functionName: "getAssetPrice", args: [ADDRESSES.USDC]
-  })
-
-  // Читаем балансы (collateral и debt) напрямую через balanceOf на токенах
-  const { data: aWETHBalance } = useReadContract({
-    chainId: base.id, address: ADDRESSES.aWETH, abi: ERC20_ABI, functionName: "balanceOf", args: [vaultAddress]
-  })
-  const { data: vWETHBalance } = useReadContract({
-    chainId: base.id, address: ADDRESSES.vWETH, abi: ERC20_ABI, functionName: "balanceOf", args: [vaultAddress]
-  })
-  const { data: aUSDCBalance } = useReadContract({
-    chainId: base.id, address: ADDRESSES.aUSDC, abi: ERC20_ABI, functionName: "balanceOf", args: [vaultAddress]
-  })
-  const { data: vUSDCBalance } = useReadContract({
-    chainId: base.id, address: ADDRESSES.vUSDC, abi: ERC20_ABI, functionName: "balanceOf", args: [vaultAddress]
-  })
-
-  // Прямой запрос к Aave Pool — показывает суммарный collateral и debt (в USD, 8 decimals)
-  const { data: aaveAccount } = useReadContract({
-    chainId: base.id,
-    address: ADDRESSES.AavePool,
-    abi: AAVE_POOL_ABI,
-    functionName: "getUserAccountData",
-    args: [vaultAddress],
-  })
-  const { data: warningHF } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "warningHF" })
-  const { data: targetHF } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "targetHF" })
-  const { data: paused } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "paused" })
-  const { data: needsProtection } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "needsProtection" })
-  const { data: owner } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "owner" })
-  const { data: rewardBps } = useReadContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "rewardBps" })
-
-  useEffect(() => {
-    if (hf === undefined) return
-
-    if (ethPriceError) console.error("[Citadel] ethPriceError:", ethPriceError)
-    if (usdcPriceError) console.error("[Citadel] usdcPriceError:", usdcPriceError)
-    console.log("[Citadel] Raw Oracle ETH Price:", String(ethPrice))
-    console.log("[Citadel] Raw Oracle USDC Price:", String(usdcPrice))
-
-    const hfNum = hf === maxUint256 ? Infinity : Number(formatUnits(hf as bigint, 18))
-    const ethPriceNum = ethPrice ? Number(formatUnits(ethPrice as bigint, 8)) : 0
-    const usdcPriceNum = usdcPrice ? Number(formatUnits(usdcPrice as bigint, 8)) : 0
-
-    const ethCollateral = aWETHBalance ? Number(formatUnits(aWETHBalance as bigint, 18)) : 0
-    const ethDebt = vWETHBalance ? Number(formatUnits(vWETHBalance as bigint, 18)) : 0
-    const usdcCollateral = aUSDCBalance ? Number(formatUnits(aUSDCBalance as bigint, 6)) : 0
-    const usdcDebt = vUSDCBalance ? Number(formatUnits(vUSDCBalance as bigint, 6)) : 0
-
-    const ethCollateralUSD = ethCollateral * ethPriceNum
-    const ethDebtUSD = ethDebt * ethPriceNum
-    const usdcCollateralUSD = usdcCollateral * usdcPriceNum
-    const usdcDebtUSD = usdcDebt * usdcPriceNum
-
-    console.group(`[Citadel] Vault #${index + 1}: ${vaultAddress}`)
-    console.log("Owner:              ", owner)
-    console.log("Status:             ", paused ? "PAUSED" : (needsProtection ? "⚠ NEEDS PROTECTION" : "ACTIVE"))
-    console.log("Health Factor:      ", hfNum === Infinity ? "∞ (no debt)" : hfNum.toFixed(6))
-    console.log("Warning HF:         ", warningHF ? Number(formatUnits(warningHF as bigint, 18)).toFixed(2) : "—")
-    console.log("Target HF:          ", targetHF ? Number(formatUnits(targetHF as bigint, 18)).toFixed(2) : "—")
-
-    console.log("── Aave Account Summary (USD) ───────────────")
-    if (aaveAccount) {
-      const acc = aaveAccount as unknown as readonly [bigint, bigint, bigint, bigint, bigint, bigint]
-      console.log("Total Collateral:   ", Number(formatUnits(acc[0], 8)).toFixed(2), "USD")
-      console.log("Total Debt:         ", Number(formatUnits(acc[1], 8)).toFixed(2), "USD")
-      console.log("Available Borrows:  ", Number(formatUnits(acc[2], 8)).toFixed(2), "USD")
-      console.log("Liquidation Threshold:", Number(acc[3]) / 100, "%")
-      console.log("LTV:                ", Number(acc[4]) / 100, "%")
-      console.log("Health Factor (Aave):", acc[5] === maxUint256 ? "∞" : Number(formatUnits(acc[5], 18)).toFixed(4))
-    }
-
-    console.log("── Collateral Breakdown ──────────────────────")
-    if (ethCollateral > 0) {
-      console.log(`WETH:  ${ethCollateral.toFixed(6)} WETH (~${ethCollateralUSD.toFixed(2)} USD)`)
-    }
-    if (usdcCollateral > 0) {
-      console.log(`USDC:  ${usdcCollateral.toFixed(2)} USDC (~${usdcCollateralUSD.toFixed(2)} USD)`)
-    }
-    console.log("Total Collateral USD (sum):", (ethCollateralUSD + usdcCollateralUSD).toFixed(2))
-
-    console.log("── Debt Breakdown ────────────────────────────")
-    if (ethDebt > 0) {
-      console.log(`WETH:  ${ethDebt.toFixed(6)} WETH (~${ethDebtUSD.toFixed(2)} USD)`)
-    }
-    if (usdcDebt > 0) {
-      console.log(`USDC:  ${usdcDebt.toFixed(2)} USDC (~${usdcDebtUSD.toFixed(2)} USD)`)
-    }
-    console.log("Total Debt USD (sum):      ", (ethDebtUSD + usdcDebtUSD).toFixed(2))
-
-    console.log("── Prices ────────────────────────────────────")
-    console.log("ETH Price:          ", ethPriceNum.toFixed(2), "USD")
-    console.log("USDC Price:         ", usdcPriceNum.toFixed(4), "USD")
-
-    console.log("Reward BPS:         ", rewardBps ? Number(rewardBps).toString() + " bps" : "—")
-    console.groupEnd()
-  }, [hf, ethPrice, usdcPrice, aWETHBalance, vWETHBalance, aUSDCBalance, vUSDCBalance, aaveAccount, warningHF, targetHF, paused, needsProtection, owner, rewardBps, vaultAddress, index])
-
-  return null
-}
-
-// ──────────────────────────────────────────────────────────────
 // Карточка одного Vault
 // ──────────────────────────────────────────────────────────────
 
@@ -710,11 +597,11 @@ function ActionModal({
 
         <div className={styles.modalActions} style={{ marginTop: '1.5rem', display: 'flex', gap: '8px' }}>
           {(type === "deposit" || type === "repay") && (
-            <Button size="sm" variant="outline" onClick={handleApprove} disabled={isBusy || !amount} style={{ flex: 1, borderColor: 'hsl(var(--primary))', color: 'hsl(var(--primary))', fontWeight: 700 }}>
+            <Button size="sm" variant="outline" onClick={handleApprove} disabled={isBusy || !amount} className={styles.protectionButtonOutline} style={{ flex: 1, minWidth: 0 }}>
               {isBusy ? <Loader2 size={14} className="animate-spin" /> : "APPROVE"}
             </Button>
           )}
-          <Button size="sm" onClick={handleAction} disabled={isBusy || !amount} style={{ flex: 1, fontWeight: 700 }}>
+          <Button size="sm" variant="default" onClick={handleAction} disabled={isBusy || !amount} className={styles.protectionButton} style={{ flex: 1, minWidth: 0 }}>
             {isBusy ? <Loader2 size={14} className="animate-spin" /> : `${type.toUpperCase()}`}
           </Button>
         </div>      </div>
@@ -1009,7 +896,6 @@ export function PositionOverview() {
             <div className={styles.positionsContainer}>
               {vaults.map((vaultAddress, index) => (
                 <div key={vaultAddress}>
-                  <VaultLogger vaultAddress={vaultAddress} index={index} />
                   <VaultCard vaultAddress={vaultAddress} index={index} />
                 </div>
               ))}

@@ -280,6 +280,20 @@
   background-color: hsla(var(--primary) / 0.9);
 }
 
+.protectionButtonOutline {
+  font-family: 'Berkeley Mono', monospace;
+  background-color: transparent;
+  color: hsl(var(--primary));
+  border: 1px solid hsl(var(--primary));
+  font-weight: 500;
+  height: 1.75rem;
+  font-size: 0.75rem;
+}
+
+.protectionButtonOutline:hover {
+  background-color: hsla(var(--primary) / 0.1);
+}
+
 .protectionButtonDestructive {
   background-color: hsl(var(--destructive));
   color: #000;
