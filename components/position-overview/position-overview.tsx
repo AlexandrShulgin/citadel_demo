@@ -81,6 +81,7 @@ interface VaultCardProps {
 }
 
 function VaultCard({ vaultAddress, index }: VaultCardProps) {
+  const queryClient = useQueryClient()
   const { address } = useAccount()
   const [actionModal, setActionModal] = useState<{ type: "deposit" | "withdraw" | "borrow" | "repay", defaultAsset?: AaveSymbol } | null>(null)
   const [detailsModalOpen, setDetailsModalOpen] = useState(false)
@@ -173,10 +174,13 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
   useEffect(() => {
     if (isTxSuccess) {
       toast.success("Transaction confirmed", { description: "Your transaction was confirmed successfully." })
-      refetchVault()
-      refetchAssets()
+      setTimeout(() => {
+        refetchVault()
+        refetchAssets()
+        queryClient.invalidateQueries()
+      }, 1500)
     }
-  }, [isTxSuccess, refetchVault, refetchAssets])
+  }, [isTxSuccess, refetchVault, refetchAssets, queryClient])
 
   const healthFactorRaw = vaultData?.[0]?.result as bigint | undefined
   const aaveAccount = vaultData?.[1]?.result as readonly [bigint, bigint, bigint, bigint, bigint, bigint] | undefined
@@ -438,10 +442,12 @@ function ActionModal({
   onClose: () => void,
   refetch: () => void
 }) {
+  const queryClient = useQueryClient();
   const defaultSymbol = defaultAsset || ((type === 'borrow' || type === 'repay') ? "USDC" : "WETH");
   const [selectedSymbol, setSelectedSymbol] = useState<AaveSymbol>(defaultSymbol);
   const [amount, setAmount] = useState("");
   const [isSelectOpen, setIsSelectOpen] = useState(false);
+  const [lastTxType, setLastTxType] = useState<"approve" | "action" | null>(null);
 
   const { writeContract, data: txHash, isPending, error: writeError } = useWriteContract();
   const { isLoading: isConfirming, isSuccess, error: receiptError } = useWaitForTransactionReceipt({ hash: txHash });
@@ -456,12 +462,20 @@ function ActionModal({
   }, [receiptError]);
 
   useEffect(() => {
-    if (isSuccess) {
-      toast.success("Transaction confirmed", { description: `Successfully executed ${type}` });
-      setAmount("");
-      refetch();
+    if (isSuccess && lastTxType) {
+      if (lastTxType === "approve") {
+        toast.success("Approval confirmed", { description: "Successfully approved token." });
+      } else {
+        toast.success("Transaction confirmed", { description: `Successfully executed ${type}` });
+        setAmount("");
+        setTimeout(() => {
+          refetch();
+          queryClient.invalidateQueries();
+        }, 1500);
+      }
+      setLastTxType(null);
     }
-  }, [isSuccess, refetch, type]);
+  }, [isSuccess, lastTxType, type, refetch, queryClient]);
 
   const handlePercent = (pct: number) => {
     if (!selectedAsset) return;
@@ -523,12 +537,14 @@ function ActionModal({
 
   const handleApprove = () => {
     if (!amount) return;
+    setLastTxType("approve");
     const val = parseUnits(amount, selectedAsset.decimals);
     writeContract({ chainId: base.id, address: selectedAsset.underlying, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, val] });
   };
 
   const handleAction = () => {
     if (!amount) return;
+    setLastTxType("action");
     const val = parseUnits(amount, selectedAsset.decimals);
     writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: type, args: [selectedAsset.underlying, val] });
   };
