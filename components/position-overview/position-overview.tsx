@@ -94,11 +94,7 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
     if (txError) toast.error("Transaction failed", { description: txError.message })
   }, [txError])
 
-  useEffect(() => {
-    if (isTxSuccess) {
-      toast.success("Transaction confirmed", { description: "Your protection settings were updated successfully." })
-    }
-  }, [isTxSuccess])
+  // Уведомление об успехе транзакции перенесено ниже, чтобы иметь доступ к функциям обновления данных
 
   // 1. Формируем массив вызовов для multicall
   const baseCalls = useMemo(() => {
@@ -173,6 +169,14 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
       { chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: 'rewardBps' },
     ]
   })
+
+  useEffect(() => {
+    if (isTxSuccess) {
+      toast.success("Transaction confirmed", { description: "Your transaction was confirmed successfully." })
+      refetchVault()
+      refetchAssets()
+    }
+  }, [isTxSuccess, refetchVault, refetchAssets])
 
   const healthFactorRaw = vaultData?.[0]?.result as bigint | undefined
   const aaveAccount = vaultData?.[1]?.result as readonly [bigint, bigint, bigint, bigint, bigint, bigint] | undefined
@@ -706,6 +710,7 @@ function AssetDetailsModal({ isOpen, onClose, assets, onOpenAction }: { isOpen: 
 // ──────────────────────────────────────────────────────────────
 
 function CreateVaultButton() {
+  const queryClient = useQueryClient()
   const [warningHF, setWarningHF] = useState(1.2)
   const [targetHF, setTargetHF] = useState(1.5)
   const { writeContract, isPending, data: txHash, error: txError } = useWriteContract()
@@ -719,8 +724,9 @@ function CreateVaultButton() {
   useEffect(() => {
     if (isSuccess) {
       toast.success("Vault successfully created")
+      queryClient.invalidateQueries()
     }
-  }, [isSuccess])
+  }, [isSuccess, queryClient])
 
   function handleCreate() {
     writeContract({
@@ -818,7 +824,7 @@ export function PositionOverview() {
     query: { enabled: mounted && isConnected && !!address },
   })
 
-  const vaults = ((vaultAddresses as `0x${string}`[] | undefined) ?? [])
+  const vaults = [...((vaultAddresses as `0x${string}`[] | undefined) ?? [])].reverse()
 
   // Выводим vault'ы в консоль для отладки
   useEffect(() => {
