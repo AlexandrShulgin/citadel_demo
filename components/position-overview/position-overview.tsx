@@ -740,7 +740,9 @@ function CreateVaultButton() {
   useEffect(() => {
     if (isSuccess) {
       toast.success("Vault successfully created")
-      queryClient.invalidateQueries()
+      setTimeout(() => {
+        queryClient.invalidateQueries()
+      }, 2000)
     }
   }, [isSuccess, queryClient])
 
