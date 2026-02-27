@@ -1,10 +1,11 @@
 // Адреса контрактов Base mainnet (chainId 8453)
 export const ADDRESSES = {
-  VaultFactory: "0xf2eDceafD96FE3987Ff04AE2a2717a558ce746Cf" as `0x${string}`,
-  CitadelVault: "0xCb33732565140147A9d6fA2CA67E9C5175164560" as `0x${string}`,
+  CitadelRegistry: "0xc2BFb17D19836772912D041162a67D387803d044" as `0x${string}`,
+  VaultFactory: "0x53cBDf5bab5102fA95C1CA34E4Ffba82Bd813332" as `0x${string}`,
+  CitadelVault: "0x9252D83cE68A1F85aCd5cA5E4f1274fD5D8c4004" as `0x${string}`,
   RiskEngine: "0x5943214090934B593442e8f26714A2bB64554d10" as `0x${string}`,
   Migrator: "0x145A55F9978c96DBCcf9f3B28229Cb1c992316a5" as `0x${string}`,
-  ProtectionModule: "0x2fd3e55ebcB18E778F3d935F0310a2675DE7b067" as `0x${string}`,
+  ProtectionModule: "0x78164038B939A60a72ddda733c6A65008F25204c" as `0x${string}`,
   RebalanceModule: "0x55D2a97F62b6e7Cf8045b2d0586f4d2f101AB0Ed" as `0x${string}`,
   LoopModule: "0x3878DD797cfdDa00c255c38C2bC1fDD1EC93687A" as `0x${string}`,
   FlashLeverageModule: "0x98c549265F178eB30D92F7Cb05DDcf8135FCaF24" as `0x${string}`,
@@ -261,6 +262,20 @@ export const CITADEL_VAULT_ABI = [
     stateMutability: "view",
     inputs: [],
     outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    name: "autoProtectionEnabled",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    name: "setAutoProtectionEnabled",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "enabled", type: "bool" }],
+    outputs: [],
   },
   {
     name: "owner",

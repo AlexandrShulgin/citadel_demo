@@ -139,10 +139,10 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
       const aTokenRaw = results[idx + 3]?.result as bigint | undefined
       const vTokenRaw = asset.vToken ? (results[idx + 4]?.result as bigint | undefined) : 0n
 
-      const price = priceRaw ? Number(formatUnits(priceRaw, 8)) : 0
-      const wallet = walletRaw && address ? Number(formatUnits(walletRaw, decimals)) : 0
-      const collateral = aTokenRaw ? Number(formatUnits(aTokenRaw, decimals)) : 0
-      const debt = vTokenRaw ? Number(formatUnits(vTokenRaw, decimals)) : 0
+      const price = priceRaw !== undefined ? Number(formatUnits(priceRaw, 8)) : 0
+      const wallet = walletRaw !== undefined && address ? Number(formatUnits(walletRaw, decimals)) : 0
+      const collateral = aTokenRaw !== undefined ? Number(formatUnits(aTokenRaw, decimals)) : 0
+      const debt = vTokenRaw !== undefined ? Number(formatUnits(vTokenRaw, decimals)) : 0
 
       return {
         ...asset,
@@ -168,6 +168,7 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
       { chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: 'paused' },
       { chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: 'needsProtection' },
       { chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: 'rewardBps' },
+      { chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: 'autoProtectionEnabled' },
     ]
   })
 
@@ -189,6 +190,7 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
   const isPaused = vaultData?.[4]?.result as boolean | undefined
   const needsProtectionRaw = vaultData?.[5]?.result as boolean | undefined
   const rewardBpsRaw = vaultData?.[6]?.result as bigint | undefined
+  const autoProtectionEnabled = vaultData?.[7]?.result as boolean | undefined
 
   // Данные для UI
   const healthFactor = hfToNumber(healthFactorRaw)
@@ -229,13 +231,25 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
   }
 
   function handleSetWarningHF() {
+    if (warningSliderHF >= targetSliderHF) {
+      toast.error("Invalid Configuration", { description: "Warning HF must be strictly less than Target HF." });
+      return;
+    }
     const warnRaw = BigInt(Math.round(warningSliderHF * 1e18))
     writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "setWarningHF", args: [warnRaw] })
   }
 
   function handleSetTargetHF() {
+    if (warningSliderHF >= targetSliderHF) {
+      toast.error("Invalid Configuration", { description: "Target HF must be strictly greater than Warning HF." });
+      return;
+    }
     const targetRaw = BigInt(Math.round(targetSliderHF * 1e18))
     writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "setTargetHF", args: [targetRaw] })
+  }
+
+  function handleToggleAutoProtection() {
+    writeContract({ chainId: base.id, address: vaultAddress, abi: CITADEL_VAULT_ABI, functionName: "setAutoProtectionEnabled", args: [!autoProtectionEnabled] })
   }
 
   return (
@@ -245,6 +259,9 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
         <div className={styles.assetInfo}>
           <div className={styles.assetTitleWrapper}>
             <h3 className={styles.assetName}>Vault {shortAddr(vaultAddress)}</h3>
+            <Button size="sm" variant="outline" className={styles.headerButton} onClick={handleToggleAutoProtection} disabled={isBusy || !!isPaused}>
+              {autoProtectionEnabled ? "Disable auto protection" : "Enable auto protection"}
+            </Button>
             {isPaused && (
               <Badge variant="outline" className={styles.protectedBadge} style={{ color: "orange" }}>
                 Paused
@@ -302,11 +319,11 @@ function VaultCard({ vaultAddress, index }: VaultCardProps) {
           <p className={styles.metricLabel}>Current</p>
         </div>
         <div>
-          <p className={styles.metricLabel}>Status</p>
-          <p className={`${styles.metricValue} ${isHealthy ? styles.statusHealthy : styles.statusMonitor}`}>
-            {needsProtectionRaw ? "⚠ Protect" : isHealthy ? "Healthy" : "Monitor"}
+          <p className={styles.metricLabel}>Auto Protection</p>
+          <p className={`${styles.metricValue} ${autoProtectionEnabled ? styles.statusHealthy : styles.statusMonitor}`}>
+            {autoProtectionEnabled ? "Enabled" : "Disabled"}
           </p>
-          <p className={styles.metricLabel}>Active</p>
+          <p className={styles.metricLabel}>Status</p>
         </div>
       </div>
       <div className={styles.metricsGrid}>
@@ -747,6 +764,10 @@ function CreateVaultButton() {
   }, [isSuccess, queryClient])
 
   function handleCreate() {
+    if (warningHF >= targetHF) {
+      toast.error("Invalid Configuration", { description: "Warning HF must be strictly less than Target HF." });
+      return;
+    }
     writeContract({
       chainId: base.id,
       address: ADDRESSES.VaultFactory,
